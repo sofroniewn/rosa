@@ -3,22 +3,32 @@ import torch.nn as nn
 
 
 class BilinearHead(nn.Module):
-    def __init__(self, in_dim_1, in_dim_2, n_dim_1, n_dim_2, rank, bias=False, head_1='Linear', head_2='Linear'):
+    def __init__(
+        self,
+        in_dim_1,
+        in_dim_2,
+        n_dim_1,
+        n_dim_2,
+        rank,
+        bias=False,
+        head_1="Linear",
+        head_2="Linear",
+    ):
         super(BilinearHead, self).__init__()
         self.bias = bias
-        if head_1 == 'OneHot':
+        if head_1 == "OneHot":
             in_dim_1 = n_dim_1
         else:
             in_dim_1 = in_dim_1
-        if head_2 == 'OneHot':
+        if head_2 == "OneHot":
             in_dim_2 = n_dim_2
         else:
             in_dim_2 = in_dim_2
-        if head_1 == 'Identity':
+        if head_1 == "Identity":
             out_dim_2 = in_dim_1
         else:
             out_dim_2 = rank
-        if head_2 == 'Identity':
+        if head_2 == "Identity":
             out_dim_1 = in_dim_2
         else:
             out_dim_1 = rank
@@ -31,10 +41,15 @@ class BilinearHead(nn.Module):
         self.act = nn.Softplus()
 
     def forward(self, x):
-        idx1, idx2, x1, x2, = x
-        if self.fc1.head == 'OneHot':
+        (
+            idx1,
+            idx2,
+            x1,
+            x2,
+        ) = x
+        if self.fc1.head == "OneHot":
             x1 = idx1
-        if self.fc2.head == 'OneHot':
+        if self.fc2.head == "OneHot":
             x2 = idx2
         x1r = self.fc1(x1)
         x2r = self.fc2(x2)
@@ -48,22 +63,32 @@ class BilinearHead(nn.Module):
 
 
 class ConcatHead(nn.Module):
-    def __init__(self, in_dim_1, in_dim_2, n_dim_1, n_dim_2, rank, bias=False, head_1='Linear', head_2='Linear'):
+    def __init__(
+        self,
+        in_dim_1,
+        in_dim_2,
+        n_dim_1,
+        n_dim_2,
+        rank,
+        bias=False,
+        head_1="Linear",
+        head_2="Linear",
+    ):
         super(ConcatHead, self).__init__()
         self.bias = bias
-        if head_1 == 'OneHot':
+        if head_1 == "OneHot":
             in_dim_1 = n_dim_1
         else:
             in_dim_1 = in_dim_1
-        if head_2 == 'OneHot':
+        if head_2 == "OneHot":
             in_dim_2 = n_dim_2
         else:
             in_dim_2 = in_dim_2
-        if head_1 == 'Identity':
+        if head_1 == "Identity":
             out_dim_2 = in_dim_1
         else:
             out_dim_2 = rank
-        if head_2 == 'Identity':
+        if head_2 == "Identity":
             out_dim_1 = in_dim_2
         else:
             out_dim_1 = rank
@@ -75,7 +100,12 @@ class ConcatHead(nn.Module):
         self.act = nn.Softplus()
 
     def forward(self, x):
-        idx1, idx2, x1, x2, = x
+        (
+            idx1,
+            idx2,
+            x1,
+            x2,
+        ) = x
         x = torch.concat((x1, x2), -1)
         x = self.fc(x).reshape(idx1.shape)
         if self.bias:
@@ -87,26 +117,26 @@ class ConcatHead(nn.Module):
 
 
 class SingleHead(nn.Module):
-    def __init__(self, in_dim, out_dim, head='Linear'):
+    def __init__(self, in_dim, out_dim, head="Linear"):
         super(SingleHead, self).__init__()
         self.head = head
-        if self.head == 'Linear':
+        if self.head == "Linear":
             self.model = nn.Linear(in_features=in_dim, out_features=out_dim)
-        elif self.head == 'MLP':
+        elif self.head == "MLP":
             self.model = MLP(in_dim=in_dim, out_dim=out_dim, dropout=0.5)
-        elif self.head == 'OneHot':
+        elif self.head == "OneHot":
             self.model = nn.Embedding(in_dim, out_dim)
-        elif self.head == 'Identity':
+        elif self.head == "Identity":
             self.model = nn.Identity()
         else:
-            raise ValueError(f'Model type {self.head} not recognized')
+            raise ValueError(f"Model type {self.head} not recognized")
 
     def forward(self, x):
         return self.model(x)
 
 
 class MLP(nn.Module):
-    def __init__(self, dropout=0., in_dim=512, out_dim=10, hidden_dim=1024):
+    def __init__(self, dropout=0.0, in_dim=512, out_dim=10, hidden_dim=1024):
         super(MLP, self).__init__()
         self.fc1 = nn.Linear(in_features=in_dim, out_features=hidden_dim, bias=True)
         self.act1 = nn.Softplus()

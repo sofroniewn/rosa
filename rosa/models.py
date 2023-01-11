@@ -7,22 +7,49 @@ from .modules import BilinearHead, ConcatHead, SingleHead
 
 
 class Embedding2ExpressionModel(LightningModule):
-    def __init__(self, in_dim_1, in_dim_2, n_dim_1, n_dim_2, rank, bias=False, head_1='Linear', head_2='Linear', item='joint'):
+    def __init__(
+        self,
+        in_dim_1,
+        in_dim_2,
+        n_dim_1,
+        n_dim_2,
+        rank,
+        bias=False,
+        head_1="Linear",
+        head_2="Linear",
+        item="joint",
+    ):
         super().__init__()
         self.alpha = None
-        if item == 'joint':
-            self.model = BilinearHead(in_dim_1=in_dim_1, in_dim_2=in_dim_2, rank=rank, bias=bias,
-                                      n_dim_1=n_dim_1, n_dim_2=n_dim_2, head_1=head_1, head_2=head_2)
-        elif item == 'joint-concat':
-            self.model = ConcatHead(in_dim_1=in_dim_1, in_dim_2=in_dim_2, rank=rank, bias=bias,
-                                      n_dim_1=n_dim_1, n_dim_2=n_dim_2, head_1=head_1, head_2=head_2)
-        elif item == 'cell':
+        if item == "joint":
+            self.model = BilinearHead(
+                in_dim_1=in_dim_1,
+                in_dim_2=in_dim_2,
+                rank=rank,
+                bias=bias,
+                n_dim_1=n_dim_1,
+                n_dim_2=n_dim_2,
+                head_1=head_1,
+                head_2=head_2,
+            )
+        elif item == "joint-concat":
+            self.model = ConcatHead(
+                in_dim_1=in_dim_1,
+                in_dim_2=in_dim_2,
+                rank=rank,
+                bias=bias,
+                n_dim_1=n_dim_1,
+                n_dim_2=n_dim_2,
+                head_1=head_1,
+                head_2=head_2,
+            )
+        elif item == "cell":
             self.model = SingleHead(in_dim_1, n_dim_2, head=head_1)
-        elif item == 'gene':
+        elif item == "gene":
             self.model = SingleHead(in_dim_2, n_dim_1, head=head_2)
         else:
-            raise ValueError(f'Item {item} not recognized')
-    
+            raise ValueError(f"Item {item} not recognized")
+
     def forward(self, x):
         return self.model.forward(x)
 
@@ -31,7 +58,7 @@ class Embedding2ExpressionModel(LightningModule):
         y_hat = self(x)
         loss = F.mean_squared_error(y_hat, y)
         if self.alpha is not None:
-             loss += self.alpha * torch.linalg.norm(self.model.model.weight)**2
+            loss += self.alpha * torch.linalg.norm(self.model.model.weight) ** 2
 
         # logs metrics for each training_step,
         # and the average across the epoch, to the progress bar and logger
@@ -43,7 +70,7 @@ class Embedding2ExpressionModel(LightningModule):
         y_hat = self(x)
         loss = F.mean_squared_error(y_hat, y)
         if self.alpha is not None:
-             loss += self.alpha * (self.model.model.weight @ self.model.model.weight).sum
+            loss += self.alpha * (self.model.model.weight @ self.model.model.weight).sum
         self.log("val_loss", loss, on_epoch=True, prog_bar=True, logger=True)
         return loss
 

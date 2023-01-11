@@ -1,13 +1,8 @@
 import warnings
 import math
-from typing import (
-    List,
-    Optional,
-    Sequence,
-    TypeVar,
-    Union
-)
-T = TypeVar('T')
+from typing import List, Optional, Sequence, TypeVar, Union
+
+T = TypeVar("T")
 from torch import default_generator, randperm
 import numpy as np
 from torch.utils.data import Dataset, Subset
@@ -34,17 +29,25 @@ def make_lengths(lengths, total_length):
         lengths = subset_lengths
         for i, length in enumerate(lengths):
             if length == 0:
-                warnings.warn(f"Length of split at index {i} is 0. "
-                              f"This might result in an empty dataset.")
+                warnings.warn(
+                    f"Length of split at index {i} is 0. "
+                    f"This might result in an empty dataset."
+                )
     # Cannot verify that dataset is Sized
-    if sum(lengths) != total_length:    # type: ignore[arg-type]
-        raise ValueError("Sum of input lengths does not equal the length of the input dataset!")
+    if sum(lengths) != total_length:  # type: ignore[arg-type]
+        raise ValueError(
+            "Sum of input lengths does not equal the length of the input dataset!"
+        )
 
     return lengths
 
 
-def random_split_multi(dataset: Dataset[T], lengths: Sequence[Union[int, float]], shape: Sequence[int],
-                 generator: Optional[Generator] = default_generator) -> List[Subset[T]]:
+def random_split_multi(
+    dataset: Dataset[T],
+    lengths: Sequence[Union[int, float]],
+    shape: Sequence[int],
+    generator: Optional[Generator] = default_generator,
+) -> List[Subset[T]]:
     """
     Randomly split a dataset into non-overlapping new datasets of given lengths.
 
@@ -68,21 +71,33 @@ def random_split_multi(dataset: Dataset[T], lengths: Sequence[Union[int, float]]
         generator (Generator): Generator used for the random permutation.
     """
     # Cannot verify that dataset is Sized
-    if math.prod(shape) != len(dataset):    # type: ignore[arg-type]
-        raise ValueError("Product of shape does not equal the length of the input dataset!")
+    if math.prod(shape) != len(dataset):  # type: ignore[arg-type]
+        raise ValueError(
+            "Product of shape does not equal the length of the input dataset!"
+        )
 
     # Make sure fractions are converted into lengths
     lengths_multi = [make_lengths(lengths, s) for s in shape]
     # Generate random list of indices matching total length
     indices_multi = [randperm(sum(lengths), generator=generator).tolist() for lengths in lengths_multi]  # type: ignore[call-overload]
     # Split indices according to lengths
-    indices_multi_split = [[indices[offset - length : offset] for offset, length in zip(_accumulate(lengths), lengths)] for indices, lengths in zip(indices_multi, lengths_multi)]
+    indices_multi_split = [
+        [
+            indices[offset - length : offset]
+            for offset, length in zip(_accumulate(lengths), lengths)
+        ]
+        for indices, lengths in zip(indices_multi, lengths_multi)
+    ]
     # Create full multi-index for each split
     indices_full_multi_split = []
     for i in range(len(lengths)):
-        indices_full_multi_split.append([p for p in itertools.product(*[ind[i] for ind in indices_multi_split])])
+        indices_full_multi_split.append(
+            [p for p in itertools.product(*[ind[i] for ind in indices_multi_split])]
+        )
     # convert full multi index back into linear index
-    indices_linear = [[np.ravel_multi_index(i, shape) for i in j] for j in indices_full_multi_split]
+    indices_linear = [
+        [np.ravel_multi_index(i, shape) for i in j] for j in indices_full_multi_split
+    ]
 
     datasubsets = [Subset(dataset, indices) for indices in indices_linear]
     for d, indices_full_multi in zip(datasubsets, indices_full_multi_split):
