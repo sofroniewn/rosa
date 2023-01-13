@@ -23,9 +23,7 @@ class JointAnnDataModule(LightningDataModule):
         adata_train = adata[train_cells, train_genes]
         self.train_dataset = JointAnnDataDataset(adata_train)
 
-        adata_val = adata[
-            np.logical_not(train_cells), np.logical_not(train_genes)
-        ]
+        adata_val = adata[np.logical_not(train_cells), np.logical_not(train_genes)]
         self.val_dataset = JointAnnDataDataset(adata_val)
         self.test_dataset = self.val_dataset
 

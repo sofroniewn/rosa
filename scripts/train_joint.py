@@ -4,11 +4,11 @@ from rosa import JointAnnDataModule, JointEmbedding2ExpressionModel
 
 
 BASE_PT = "/Users/nsofroniew/Documents/data/multiomics/enformer"
-TABULA_SAPIENS_BY_CELL_TYPE_WITH_EMBEDS_PT = "/Users/nsofroniew/Documents/data/multiomics/cell_census/tabula_sapiens_by_features_with_embeds_prot.h5ad"
+TABULA_SAPIENS_BY_CELL_TYPE_WITH_EMBEDS_PT = "/Users/nsofroniew/Documents/data/multiomics/cell_census/tabula_sapiens_by_features_with_embeds_new.h5ad"
 # CKPT_PT = '/Users/nsofroniew/Documents/data/multiomics/enformer/embedding2expression_r2/lightning_logs/version_7/checkpoints/epoch=11958-step=7211277.ckpt'
 CKPT_PT = None
 HEAD_1 = "MLP"
-HEAD_2 = "Linear"
+HEAD_2 = "MLP"
 METHOD = "bilinear"
 RANK = 16
 
