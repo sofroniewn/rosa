@@ -29,7 +29,7 @@ class JointEmbedding2ExpressionModel(LightningModule):
             self.model = ConcatHead(
                 in_dim_1=in_dim_1,
                 in_dim_2=in_dim_2,
-                head_1=head_1,
+                head=head_1,
             )
         else:
             raise ValueError(f"Item {method} not recognized")

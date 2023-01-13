@@ -36,8 +36,10 @@ class ConcatHead(nn.Module):
         self.act = nn.Softplus()
 
     def forward(self, x1, x2):
+        shape = list(x1.shape)
+        shape[-1] += x2.shape[-1]
         x = torch.concat((x1, x2), -1)
-        x = self.fc(x)
+        x = self.fc(x).reshape(shape[:-1])
         x = self.act(x)
         return x
 
