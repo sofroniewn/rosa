@@ -46,7 +46,7 @@ class JointAnnDataDataset(Dataset):
 
 
 class GeneAnnDataDataset(Dataset):
-    """Return gene embedding and experession across all cells for a gene"""
+    """Return gene embedding and experession across all cells for a single gene"""
 
     def __init__(self, adata: AnnData) -> None:
         # Shape cell x gene
@@ -66,3 +66,26 @@ class GeneAnnDataDataset(Dataset):
 
     def __getitem__(self, idx) -> Tuple[Tensor, Tensor]:
         return self.gene_embedding[idx], self.expression[:, idx]
+
+
+class CellAnnDataDataset(Dataset):
+    """Return cell embedding, and experession across all genes for a single cell"""
+
+    def __init__(self, adata: AnnData) -> None:
+        # Shape cell x gene
+        self.expression = torch.from_numpy(adata.X).type(torch.float32)
+
+        # Shape cell x cell embedding
+        self.cell_embedding = torch.from_numpy(adata.obsm["embedding"]).type(
+            torch.float32
+        )
+
+        self.n_genes = self.expression.shape[1]
+        self.n_cells = self.expression.shape[0]
+        self.len_cell_embedding = self.cell_embedding.shape[1]
+
+    def __len__(self) -> int:
+        return self.n_cells
+
+    def __getitem__(self, idx) -> Tuple[Tensor, Tensor]:
+        return self.cell_embedding[idx], self.expression[idx, :]

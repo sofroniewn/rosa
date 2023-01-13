@@ -60,7 +60,7 @@ class JointEmbedding2ExpressionModel(LightningModule):
         return optim.SGD(self.model.parameters(), lr=0.001, momentum=0.9)
 
 
-class GeneEmbedding2ExpressionModel(LightningModule):
+class SingleEmbedding2ExpressionModel(LightningModule):
     def __init__(
         self,
         in_dim,

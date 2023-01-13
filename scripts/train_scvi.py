@@ -14,7 +14,7 @@ SCVI.setup_anndata(adata_train, layer="counts")
 
 # model = SCVI(adata_train, n_layers=4, n_hidden=512, n_latent=64)
 # model = SCVI(adata_train, n_layers=2, n_hidden=256, n_latent=32, dispersion='gene-cell')
-model = SCVI(adata_train, n_layers=2, n_hidden=256, n_latent=32, dispersion='gene', gene_likelihood='nb')
+model = SCVI(adata_train, n_layers=2, n_hidden=256, n_latent=32, dispersion='gene', gene_likelihood='zinb')
 # model = SCVI(adata_train, n_layers=2, n_hidden=64, n_latent=16)
 # model = SCVI(adata_train)
 
