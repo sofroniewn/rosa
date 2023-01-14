@@ -1,7 +1,9 @@
 import pandas as pd
 import numpy as np
 import scanpy as sc
+import anndata as ad
 from sklearn.decomposition import PCA
+from tqdm import tqdm
 
 
 def add_gene_embeddings(adata, seqs, embeds):
@@ -125,3 +127,23 @@ def calculate_cell_embeddings_pca(adata):
     # add cell embeddings to obsm
     adata.obsm["embedding"] = full_cell_embeddings
     return adata
+
+
+def average_expression_per_feature(adata, feature_name):
+    features = adata.obs[feature_name].value_counts()
+    n_features = len(features)
+    n_var = len(adata.var)
+    features_by_var = np.zeros((n_features, n_var), dtype=np.int64)
+    
+    obs = features.to_frame(name='count')
+    obs.reset_index(level=0, inplace=True, names=feature_name)
+
+    for index, gv in tqdm(enumerate(features.index)):
+        values = adata.X[adata.obs[feature_name] == gv].sum(axis=0)
+        np.add.at(features_by_var, [index], values.tolist())
+    
+    with np.errstate(divide="ignore", invalid="ignore"):
+        features_by_var = np.divide(features_by_var, np.expand_dims(features, axis=1))
+        features_by_var[np.isnan(features_by_var)] = 0
+
+    return ad.AnnData(X=features_by_var, obs=obs, var=adata.var)
