@@ -15,6 +15,8 @@ class JointAnnDataDataset(Dataset):
     """Return gene embedding, cell embedding, and experession for a single cell and gene combination"""
 
     def __init__(self, adata: AnnData) -> None:
+        self.adata = adata
+
         # Shape cell x gene
         self.expression = torch.from_numpy(adata.X).type(torch.float32)
 
@@ -49,6 +51,8 @@ class GeneAnnDataDataset(Dataset):
     """Return gene embedding and experession across all cells for a single gene"""
 
     def __init__(self, adata: AnnData) -> None:
+        self.adata = adata
+
         # Shape cell x gene
         self.expression = torch.from_numpy(adata.X).type(torch.float32)
 
@@ -72,6 +76,8 @@ class CellAnnDataDataset(Dataset):
     """Return cell embedding, and experession across all genes for a single cell"""
 
     def __init__(self, adata: AnnData) -> None:
+        self.adata = adata
+
         # Shape cell x gene
         self.expression = torch.from_numpy(adata.X).type(torch.float32)
 

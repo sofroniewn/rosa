@@ -81,15 +81,25 @@ def add_gene_biotype(adata):
     return adata
 
 
-def normalize_expression(adata):
+def normalize_expression(adata, method="Log1p", target_sum=1e5):
     # Store counts in seperate layer
     adata.layers["counts"] = adata.X.copy()
 
-    # Normalize by library size
-    # sc.pp.normalize_total(expression, target_sum=1e4)
+    if method == "Log1p":
+        # Normalize by library size
+        print(f"Relative library size {adata.X.sum(axis=1).mean() / target_sum}")
+        sc.pp.normalize_total(adata, target_sum=target_sum)
+        # Log1p transform expression
+        sc.pp.log1p(adata)
+    elif method == "Pearson":
+        # Pearson normalize
+        adata.X = np.ceil(adata.X)
+        sc.pp.filter_genes(adata, min_cells=1)
+        sc.experimental.pp.normalize_pearson_residuals(adata)
+        adata.X[adata.X < 0] = 0
+    else:
+        raise ValueError(f"Method {method} not recognized")
 
-    # Log1p transform expression
-    sc.pp.log1p(adata)
     return adata
 
 
@@ -129,21 +139,64 @@ def calculate_cell_embeddings_pca(adata):
     return adata
 
 
+def add_dendrogram_and_hvgs(adata):
+    # Add highly variable genes
+    adata.uns["log1p"]["base"] = None  # needed to deal with error?
+    sc.pp.highly_variable_genes(adata, min_mean=0.0125, max_mean=3, min_disp=0.5)
+
+    # Add dendrogram
+    sc.tl.dendrogram(adata, groupby="label", use_rep="X")
+    return adata
+
+
 def average_expression_per_feature(adata, feature_name):
     features = adata.obs[feature_name].value_counts()
     n_features = len(features)
     n_var = len(adata.var)
     features_by_var = np.zeros((n_features, n_var), dtype=np.int64)
-    
-    obs = features.to_frame(name='count')
+
+    obs = features.to_frame(name="count")
     obs.reset_index(level=0, inplace=True, names=feature_name)
 
     for index, gv in tqdm(enumerate(features.index)):
         values = adata.X[adata.obs[feature_name] == gv].sum(axis=0)
         np.add.at(features_by_var, [index], values.tolist())
-    
+
     with np.errstate(divide="ignore", invalid="ignore"):
         features_by_var = np.divide(features_by_var, np.expand_dims(features, axis=1))
         features_by_var[np.isnan(features_by_var)] = 0
 
     return ad.AnnData(X=features_by_var, obs=obs, var=adata.var)
+
+
+def add_marker_genes(adata, differential_expression):
+    # Add differentially expressed genes in test dataset
+    test_genes = np.logical_not(adata.var["train"])
+    marker_genes_dict = {}
+    cats = adata.obs.label.cat.categories
+    for i, c in enumerate(cats):
+        cid = "{} vs Rest".format(c)
+        label_df = differential_expression.loc[
+            differential_expression.comparison == cid
+        ]
+        label_df = label_df[label_df["lfc_mean"] > 0]
+        label_df = label_df[label_df["bayes_factor"] > 3]
+        label_df = label_df[label_df["non_zeros_proportion1"] > 0.1]
+
+        # Restrict to genes that are in test dataset
+        label_df = label_df[label_df.index.isin(adata[:, test_genes].var.index)]
+
+        # Restrict to genes that havn't already been used if possible
+        used_genes = set(marker_genes_dict.values())
+        if len(used_genes.union(set(label_df.index))) > len(label_df.index):
+            label_df = label_df[~label_df.index.isin(used_genes)]
+
+        # Get best marker gene
+        marker_genes_dict[c] = label_df["lfc_mean"].idxmax()
+
+    # Add marker genes to adata
+    adata.obs["marker_gene"] = adata.obs["label"].map(marker_genes_dict)
+    adata.obs["marker_feature_name"] = adata.var.loc[adata.obs["marker_gene"]][
+        "feature_name"
+    ].values
+    return adata

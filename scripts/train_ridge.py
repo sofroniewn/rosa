@@ -4,8 +4,8 @@ import pickle
 import numpy as np
 
 
-TABULA_SAPIENS_BY_CELL_TYPE_WITH_EMBEDS_PT = "/Users/nsofroniew/Documents/data/multiomics/cell_census/tabula_sapiens_by_features_with_embeds_new.h5ad"
-TABULA_SAPIENS_BY_CELL_TYPE_RIDGE_MODEL = "/Users/nsofroniew/Documents/data/multiomics/cell_census/tabula_sapiens_by_features_ridge_model_new.sav"
+TABULA_SAPIENS_BY_CELL_TYPE_WITH_EMBEDS_PT = "/Users/nsofroniew/Documents/data/multiomics/cell_census/tabula_sapiens_by_features_with_embeds_new_norm.h5ad"
+TABULA_SAPIENS_BY_CELL_TYPE_RIDGE_MODEL = "/Users/nsofroniew/Documents/data/multiomics/cell_census/tabula_sapiens_by_features_ridge_model_new_norm.sav"
 ALPHA = 100
 SHUFFLE = False
 
@@ -21,4 +21,4 @@ if SHUFFLE:
 
 model = linear_model.Ridge(alpha=ALPHA).fit(X_train, y_train)
 
-pickle.dump(model, open(TABULA_SAPIENS_BY_CELL_TYPE_RIDGE_MODEL, 'wb'))
+pickle.dump(model, open(TABULA_SAPIENS_BY_CELL_TYPE_RIDGE_MODEL, "wb"))

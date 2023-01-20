@@ -9,7 +9,7 @@ class Interval:
     name: str
     start: int
     end: int
-    strand: str = '.'
+    strand: str = "."
 
     @property
     def negative_strand(self):
@@ -47,7 +47,9 @@ class Interval:
 
 def request_interval(gene, sequence_length):
     # Create an interval centered on gene start
-    interval = Interval(name = gene.contig, start=gene.start, end=gene.start, strand=gene.strand)
+    interval = Interval(
+        name=gene.contig, start=gene.start, end=gene.start, strand=gene.strand
+    )
     # Resize interval to be target sequence length
     interval = interval.resize(sequence_length)
     return interval
@@ -57,13 +59,17 @@ def extract_interval(dna, interval):
     # Get length of chromosome
     chromosome_length = len(dna[interval.name])
     # Determin padding needed
-    pad_upstream = 'N' * max(-interval.start, 0)
-    pad_downstream = 'N' * max(interval.end - chromosome_length, 0)
+    pad_upstream = "N" * max(-interval.start, 0)
+    pad_downstream = "N" * max(interval.end - chromosome_length, 0)
     # Make sure interval fits in chromosome
     interval = interval.trim(max_value=chromosome_length)
     # Get sequence corresponding to interval - note pyfaidx wants a 1-based interval
-    sequence = str(dna.get_seq(interval.name, interval.start + 1, interval.end, rc=interval.negative_strand).seq).upper()
-    # pad sequence to propper length 
+    sequence = str(
+        dna.get_seq(
+            interval.name, interval.start + 1, interval.end, rc=interval.negative_strand
+        ).seq
+    ).upper()
+    # pad sequence to propper length
     return pad_upstream + sequence + pad_downstream
 
 
@@ -83,19 +89,24 @@ def get_all_sequences(genome, dna, sequence_length):
 def get_all_intervals(genome, sequence_length):
     # BED file format
     # https://genome.ucsc.edu/FAQ/FAQformat.html#format1
-    intervals_all= []
+    intervals_all = []
     for gene_id in tqdm(genome.gene_ids()):
         # Extract gene based on id
         gene = genome.gene_by_id(gene_id)
         # Generate an interval of the right length around gene start site
         interval = request_interval(gene, sequence_length)
         # Extract sequence
-        intervals_all.append({'chromosome': interval.name,
-                        'start': interval.start,
-                        'end': interval.end,
-                        'strand': interval.strand,
-                        'name': gene_id,
-                        'score': 1000
-                })
-    df = pd.DataFrame(intervals_all, columns=['chromosome', 'start', 'end', 'name', 'score', 'strand'])
+        intervals_all.append(
+            {
+                "chromosome": interval.name,
+                "start": interval.start,
+                "end": interval.end,
+                "strand": interval.strand,
+                "name": gene_id,
+                "score": 1000,
+            }
+        )
+    df = pd.DataFrame(
+        intervals_all, columns=["chromosome", "start", "end", "name", "score", "strand"]
+    )
     return df

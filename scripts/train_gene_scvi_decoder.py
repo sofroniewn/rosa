@@ -1,19 +1,19 @@
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint
-from rosa import GeneAnnDataModule, SingleEmbedding2ExpressionModel
+from rosa import GeneAnnDataModule
+from rosa.models import SingleSCVIDecoderEmbedding2ExpressionModel
 
 
 BASE_PT = "/Users/nsofroniew/Documents/data/multiomics/enformer"
 TABULA_SAPIENS_BY_CELL_TYPE_WITH_EMBEDS_PT = "/Users/nsofroniew/Documents/data/multiomics/cell_census/tabula_sapiens_by_features_with_embeds_new_norm.h5ad"
 # CKPT_PT = '/Users/nsofroniew/Documents/data/multiomics/enformer/embedding2expression_r2/lightning_logs/version_7/checkpoints/epoch=11958-step=7211277.ckpt'
 CKPT_PT = None
-HEAD = "Linear"
 
 dm = GeneAnnDataModule(TABULA_SAPIENS_BY_CELL_TYPE_WITH_EMBEDS_PT)
 dm.setup()
 
-model = SingleEmbedding2ExpressionModel(
-    in_dim=dm.n_input, out_dim=dm.n_output, head=HEAD
+model = SingleSCVIDecoderEmbedding2ExpressionModel(
+    in_dim=dm.n_input, out_dim=dm.n_output
 )
 print(model)
 
