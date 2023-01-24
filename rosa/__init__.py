@@ -1,2 +1,2 @@
+from .datamodules import AnnDataModule
 from .models import JointEmbedding2ExpressionModel, SingleEmbedding2ExpressionModel
-from .datamodules import JointAnnDataModule, GeneAnnDataModule, CellAnnDataModule

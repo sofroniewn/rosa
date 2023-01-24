@@ -1,7 +1,7 @@
-import pandas as pd
-import numpy as np
-import scanpy as sc
 import anndata as ad
+import numpy as np
+import pandas as pd
+import scanpy as sc
 from sklearn.decomposition import PCA
 from tqdm import tqdm
 
@@ -199,4 +199,44 @@ def add_marker_genes(adata, differential_expression):
     adata.obs["marker_feature_name"] = adata.var.loc[adata.obs["marker_gene"]][
         "feature_name"
     ].values
+    return adata
+
+
+def bin_expression(adata, n_bins):
+    binned_X = []
+    bin_edges = []
+    for obs in adata.X:
+        obs = np.asarray(obs)
+        non_zero_ids = obs.nonzero()
+        non_zero_obs = obs[non_zero_ids]
+        bins = np.quantile(non_zero_obs, np.linspace(0, 1, n_bins - 1))
+        non_zero_digits = np.digitize(non_zero_obs, bins)
+        binned_obs = np.zeros_like(obs, dtype=np.int64)
+        binned_obs[non_zero_ids] = non_zero_digits
+        binned_X.append(binned_obs)
+        bin_edges.append(np.concatenate([[0], bins]))
+
+    adata.layers["binned"] = np.stack(binned_X)
+    adata.obsm["bin_edges"] = np.stack(bin_edges)
+
+    return adata
+
+
+def reconstruct_expression(
+    adata,
+    input_layer: str = "binned",
+    input_edges="bin_edges",
+    output_layer="reconstructed",
+):
+    reconstructed_X = []
+    for binned_obs, bins in zip(adata.layers[input_layer], adata.obsm[input_edges]):
+        bin_sizes = np.diff(bins[1:])
+        cumulative_sum = np.cumsum(bin_sizes)
+        bin_centers = cumulative_sum - bin_sizes / 2
+        # Add zero bin so zero values get mapped to zero, add max value so number of bins correct
+        bin_centers = np.concatenate([[0], bin_centers, [bins[-1]]])
+        # reconstruct expression
+        reconstructed_X.append(bin_centers[binned_obs])
+
+    adata.layers[output_layer] = np.stack(reconstructed_X)
     return adata

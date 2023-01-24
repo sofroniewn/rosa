@@ -1,8 +1,9 @@
 import warnings
-from scipy.stats import pearsonr, kstest, ConstantInputWarning
+
+import anndata as ad
 import numpy as np
 import scanpy as sc
-import anndata as ad
+from scipy.stats import ConstantInputWarning, kstest, spearmanr
 
 warnings.filterwarnings("ignore", category=ConstantInputWarning)
 warnings.filterwarnings("ignore", category=ad.ImplicitModificationWarning)
@@ -30,15 +31,19 @@ def score_predictions(adata):
         ((a - b) ** 2).mean() for a, b in zip(X_pred, X_meas)
     ]
 
-    results["pearsonr"] = pearsonr(X_pred.ravel(), X_meas.ravel()).statistic
-    results["pearsonr_across_cells"] = [
-        pearsonr(a, b).statistic for a, b in zip(X_pred.T, X_meas.T)
+    results["spearmanr"] = spearmanr(X_pred.ravel(), X_meas.ravel()).correlation
+    results["spearmanr_across_cells"] = [
+        spearmanr(a, b).correlation for a, b in zip(X_pred.T, X_meas.T)
     ]
-    results["pearsonr_across_genes"] = [
-        pearsonr(a, b).statistic for a, b in zip(X_pred, X_meas)
+    results["spearmanr_across_genes"] = [
+        spearmanr(a, b).correlation for a, b in zip(X_pred, X_meas)
     ]
-    results["pearsonr_across_cells_mean"] = np.nanmean(results["pearsonr_across_cells"])
-    results["pearsonr_across_genes_mean"] = np.nanmean(results["pearsonr_across_genes"])
+    results["spearmanr_across_cells_mean"] = np.nanmean(
+        results["spearmanr_across_cells"]
+    )
+    results["spearmanr_across_genes_mean"] = np.nanmean(
+        results["spearmanr_across_genes"]
+    )
 
     ks = kstest(X_pred.ravel(), X_meas.ravel())
     results["ks_statistic"] = ks.statistic
@@ -52,9 +57,10 @@ def score_predictions(adata):
 
     print(
         f"""
-        mean pearsonr across genes {results['pearsonr_across_genes_mean']:.3f}
-        mean pearsonr across cells {results['pearsonr_across_cells_mean']:.3f}
+        mean spearmanr across genes {results['spearmanr_across_genes_mean']:.3f}
+        mean spearmanr across cells {results['spearmanr_across_cells_mean']:.3f}
         mean square error {results['mse']:.3f}
+        ks-statistic on total expression {results['ks_statistic']:.3f}
         mean percent total expression captured per cell {results['total_expression_captured']:.3f}
         """
     )
