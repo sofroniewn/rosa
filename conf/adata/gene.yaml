@@ -1,0 +1,4 @@
+embedding_type: gene
+expression_layer: binned
+var_embedding: embedding
+obs_embedding: null

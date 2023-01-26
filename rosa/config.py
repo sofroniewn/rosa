@@ -1,11 +1,11 @@
-from typing import Optional
 from dataclasses import dataclass
+from typing import Optional
 
 
 @dataclass
 class Paths:
-    base: str
     adata: str
+    chkpt_dir: str
     chkpt: Optional[str]
 
 
@@ -19,11 +19,16 @@ class Adata:
 @dataclass
 class Params:
     batch_size: int
+    learning_rate: float
 
 
 @dataclass
 class Model:
-    head: str
+    var_head: Optional[str]
+    obs_head: Optional[str]
+    head: Optional[str]
+    method: Optional[str]
+    rank: Optional[int]
 
 
 @dataclass

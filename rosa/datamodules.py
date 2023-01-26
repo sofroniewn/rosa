@@ -5,10 +5,10 @@ from anndata import read_h5ad  # type: ignore
 from pytorch_lightning import LightningDataModule
 from torch.utils.data import DataLoader
 
-from .datasets import AnnDataDataset, EmbeddingType
+from .datasets import EmbeddingType, RosaDataset
 
 
-class AnnDataModule(LightningDataModule):
+class RosaDataModule(LightningDataModule):
     def __init__(
         self,
         adata_path: str,
@@ -32,17 +32,15 @@ class AnnDataModule(LightningDataModule):
         adata = read_h5ad(self.adata_path)
 
         # create predict dataset with all data
-        self.predict_dataset = AnnDataDataset(
+        self.predict_dataset = RosaDataset(
             adata,
             expression_layer=self._expression_layer,
             var_embedding=self._var_embedding,
             obs_embedding=self._obs_embedding,
         )
 
-        self.len_obs_embedding = self.predict_dataset.len_obs_embedding
-        self.len_var_embedding = self.predict_dataset.len_var_embedding
-        self.n_obs = self.predict_dataset.n_obs
-        self.n_var = self.predict_dataset.n_var
+        self.len_embedding = self.predict_dataset.len_embedding
+        self.len_target = self.predict_dataset.len_target
         self.embedding_type = self.predict_dataset.embedding_type
 
         # split train and test sets based on adata file
@@ -65,14 +63,14 @@ class AnnDataModule(LightningDataModule):
                 f"Type {self.embedding_type.name} not recognized, must be one of {list(EmbeddingType.__members__)}"
             )
 
-        self.train_dataset = AnnDataDataset(
+        self.train_dataset = RosaDataset(
             adata_train,
             expression_layer=self._expression_layer,
             var_embedding=self._var_embedding,
             obs_embedding=self._obs_embedding,
         )
 
-        self.val_dataset = AnnDataDataset(
+        self.val_dataset = RosaDataset(
             adata_val,
             expression_layer=self._expression_layer,
             var_embedding=self._var_embedding,

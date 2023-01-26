@@ -12,6 +12,7 @@ from rosa.preprocessing import (
     normalize_expression,
     add_marker_genes,
     add_dendrogram_and_hvgs,
+    bin_expression,
 )
 
 
@@ -52,10 +53,14 @@ adata.obs["label"] = (
 adata = add_gene_embeddings(adata, seqs, embeds)
 # Add train indicators
 adata = add_train_indicators(adata, fraction=0.7, seed=42)
+
 # Clean cells and genes
 adata = clean_cells_genes(adata)
 # Normalize expression
 adata = normalize_expression(adata)
+# Bin expression
+adata = bin_expression(adata, n_bins=128)
+
 # Calculate and add cell embeddings using only traning data
 adata = calculate_cell_embeddings_pca(adata)
 

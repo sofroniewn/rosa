@@ -1,3 +1,5 @@
+from typing import Optional
+
 import anndata as ad
 import numpy as np
 import pandas as pd
@@ -89,14 +91,17 @@ def normalize_expression(adata, method="Log1p", target_sum=1e5):
         # Normalize by library size
         print(f"Relative library size {adata.X.sum(axis=1).mean() / target_sum}")
         sc.pp.normalize_total(adata, target_sum=target_sum)
+        adata.layers["normalized_counts"] = adata.X.copy()
         # Log1p transform expression
         sc.pp.log1p(adata)
+        adata.layers["log1p"] = adata.X.copy()
     elif method == "Pearson":
         # Pearson normalize
         adata.X = np.ceil(adata.X)
         sc.pp.filter_genes(adata, min_cells=1)
         sc.experimental.pp.normalize_pearson_residuals(adata)
         adata.X[adata.X < 0] = 0
+        adata.layers["pearson"] = adata.X.copy()
     else:
         raise ValueError(f"Method {method} not recognized")
 
@@ -202,10 +207,17 @@ def add_marker_genes(adata, differential_expression):
     return adata
 
 
-def bin_expression(adata, n_bins):
+def bin_expression(
+    adata: ad.AnnData, n_bins: int, input_layer: Optional[str] = None
+) -> ad.AnnData:
     binned_X = []
     bin_edges = []
-    for obs in adata.X:
+    if input_layer is None:
+        expression = adata.X
+    else:
+        expression = adata.layers[input_layer]
+
+    for obs in expression:
         obs = np.asarray(obs)
         non_zero_ids = obs.nonzero()
         non_zero_obs = obs[non_zero_ids]
@@ -223,11 +235,11 @@ def bin_expression(adata, n_bins):
 
 
 def reconstruct_expression(
-    adata,
+    adata: ad.AnnData,
     input_layer: str = "binned",
-    input_edges="bin_edges",
-    output_layer="reconstructed",
-):
+    input_edges: str = "bin_edges",
+    output_layer: str = "reconstructed",
+) -> ad.AnnData:
     reconstructed_X = []
     for binned_obs, bins in zip(adata.layers[input_layer], adata.obsm[input_edges]):
         bin_sizes = np.diff(bins[1:])
@@ -235,8 +247,10 @@ def reconstruct_expression(
         bin_centers = cumulative_sum - bin_sizes / 2
         # Add zero bin so zero values get mapped to zero, add max value so number of bins correct
         bin_centers = np.concatenate([[0], bin_centers, [bins[-1]]])
+        # ensure binned_obs in valid range
+        binned_obs_valid = np.clip(np.round(binned_obs), 0, len(bin_centers)-1).astype(int)
         # reconstruct expression
-        reconstructed_X.append(bin_centers[binned_obs])
+        reconstructed_X.append(bin_centers[binned_obs_valid])
 
     adata.layers[output_layer] = np.stack(reconstructed_X)
     return adata

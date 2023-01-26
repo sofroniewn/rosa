@@ -8,6 +8,8 @@ from anndata import AnnData  # type: ignore
 from torch import Tensor
 from torch.utils.data import Dataset
 
+from .preprocessing import reconstruct_expression
+
 warnings.simplefilter(action="ignore", category=FutureWarning)
 
 
@@ -17,7 +19,7 @@ class EmbeddingType(Enum):
     OBS = auto()
 
 
-class AnnDataDataset(Dataset):
+class RosaDataset(Dataset):
     """Return obs and var embeddings as needed along with experession"""
 
     def __init__(
@@ -50,7 +52,7 @@ class AnnDataDataset(Dataset):
             self.expression = self.adata.X  # type: np.ndarray
         else:
             self.expression = self.adata.layers[self._EXPRESSION_LAYER_KEY]
-        self.n_obs, self.n_var = self.expression.shape
+        self._n_obs, self._n_var = self.expression.shape
 
         if self._VAR_EMBEDDING_KEY is not None:
             # var embedding shape n_var x var embedding length
@@ -58,8 +60,8 @@ class AnnDataDataset(Dataset):
                 self._VAR_EMBEDDING_KEY
             ]  # type: np.ndarray
         else:
-            self.var_embedding = np.empty((self.n_var, 0))
-        self.len_var_embedding = self.var_embedding.shape[1]
+            self.var_embedding = np.empty((self._n_var, 0))
+        self._len_var_embedding = self.var_embedding.shape[1]
 
         if self._OBS_EMBEDDING_KEY is not None:
             # var embedding shape n_var x var embedding length
@@ -67,34 +69,49 @@ class AnnDataDataset(Dataset):
                 self._OBS_EMBEDDING_KEY
             ]  # type: np.ndarray
         else:
-            self.obs_embedding = np.empty((self.n_obs, 0))
-        self.len_obs_embedding = self.obs_embedding.shape[1]
+            self.obs_embedding = np.empty((self._n_obs, 0))
+        self._len_obs_embedding = self.obs_embedding.shape[1]
+
+        if self.embedding_type == EmbeddingType.JOINT:
+            self.len_embedding = (
+                self._len_obs_embedding,
+                self._len_var_embedding,
+            )  # type: Union[int, Tuple[int, int]]
+            self.len_target = 1
+        elif self.embedding_type == EmbeddingType.VAR:
+            self.len_embedding = self._len_var_embedding
+            self.len_target = self._n_obs
+        elif self.embedding_type == EmbeddingType.OBS:
+            self.len_embedding = self._len_obs_embedding
+            self.len_target = self._n_var
+        else:
+            raise ValueError(
+                f"Type {self.embedding_type.name} not recognized, must be one of {list(EmbeddingType.__members__)}"
+            )
 
     def __len__(self) -> int:
         if self.embedding_type == EmbeddingType.JOINT:
-            return self.n_obs * self.n_var
+            return self._n_obs * self._n_var
         if self.embedding_type == EmbeddingType.VAR:
-            return self.n_var
+            return self._n_var
         if self.embedding_type == EmbeddingType.OBS:
-            return self.n_obs
+            return self._n_obs
         raise ValueError(
             f"Type {self.embedding_type.name} not recognized, must be one of {list(EmbeddingType.__members__)}"
         )
 
-    def __getitem__(
-        self, idx
-    ) -> Union[Tuple[Tensor, Tensor], Tuple[Tensor, Tensor, Tensor]]:
+    def __getitem__(self, idx) -> Tuple[Union[Tuple[Tensor, Tensor], Tensor], Tensor]:
         if self.embedding_type == EmbeddingType.JOINT:
             # Extract data
-            obs_i, var_j = np.unravel_index(idx, (self.n_obs, self.n_var))
+            obs_i, var_j = np.unravel_index(idx, (self._n_obs, self._n_var))
             obs = self.obs_embedding[obs_i]
             var = self.var_embedding[var_j]
             expression = self.expression[obs_i, var_j]
             # Move to torch
-            expression = torch.from_numpy(expression).type(torch.float32)
+            expression = torch.tensor(expression).type(torch.float32)
             obs = torch.from_numpy(obs).type(torch.float32)
             var = torch.from_numpy(var).type(torch.float32)
-            return obs, var, expression
+            return (obs, var), expression
         if self.embedding_type == EmbeddingType.VAR:
             # Extract data
             var = self.var_embedding[idx]
@@ -116,13 +133,20 @@ class AnnDataDataset(Dataset):
             f"Type {self.embedding_type.name} not recognized, must be one of {list(EmbeddingType.__members__)}"
         )
 
-    def postprocess(self, results: List[Any]) -> np.ndarray:
+    def postprocess(self, results: List[Any]):
         if self.embedding_type == EmbeddingType.JOINT:
-            return torch.concat(results).numpy().reshape(self.n_obs, self.n_var)
-        if self.embedding_type == EmbeddingType.OBS:
-            return torch.concat(results).numpy()
-        if self.embedding_type == EmbeddingType.VAR:
-            return torch.concat(results).numpy().T
-        raise ValueError(
-            f"Type {self.embedding_type.name} not recognized, must be one of {list(EmbeddingType.__members__)}"
-        )
+            prediction = torch.concat(results).numpy().reshape(self._n_obs, self._n_var)
+        elif self.embedding_type == EmbeddingType.OBS:
+            prediction =  torch.concat(results).numpy()
+        elif self.embedding_type == EmbeddingType.VAR:
+            prediction =  torch.concat(results).numpy().T
+        else:
+            raise ValueError(
+                f"Type {self.embedding_type.name} not recognized, must be one of {list(EmbeddingType.__members__)}"
+            )
+
+        if self._EXPRESSION_LAYER_KEY == 'binned':
+                self.adata.layers['binned_prediction'] = prediction
+                reconstruct_expression(self.adata, input_layer='binned_prediction', output_layer='prediction')                
+        else:
+            self.adata.layers['prediction'] = prediction

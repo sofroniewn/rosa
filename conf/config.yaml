@@ -1,0 +1,12 @@
+hydra:
+  run:
+      dir: /Users/nsofroniew/Documents/data/rosa/outputs/${adata.embedding_type}/${now:%Y-%m-%d}/${now:%H-%M-%S}
+paths:
+  adata: /Users/nsofroniew/Documents/data/multiomics/cell_census/tabula_sapiens_by_features_with_embeds_new_norm.h5ad
+  chkpt: null
+params:
+  batch_size: 4096
+  learning_rate: 0.001
+defaults:
+  - adata: gene
+  - model: single
