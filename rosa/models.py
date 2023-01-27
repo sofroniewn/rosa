@@ -5,8 +5,11 @@ import torch.nn as nn
 import torch.optim as optim
 import torchmetrics.functional as F
 from pytorch_lightning import LightningModule
-from scvi.distributions import (NegativeBinomial, NegativeBinomialMixture,
-                                ZeroInflatedNegativeBinomial)
+from scvi.distributions import (
+    NegativeBinomial,
+    NegativeBinomialMixture,
+    ZeroInflatedNegativeBinomial,
+)
 
 from .components import BilinearHead, ConcatHead, SingleHead
 
@@ -36,7 +39,7 @@ class RosaModel(nn.Module):
                     head=model_cfg.head,
                 )
             else:
-                raise ValueError(f"Item {method} not recognized")
+                raise ValueError(f"Item {model_cfg.method} not recognized")
         else:
             self.model = SingleHead(in_dim, out_dim, head=model_cfg.head)
 

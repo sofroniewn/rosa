@@ -1,4 +1,4 @@
 embedding_type: joint
 expression_layer: null
-var_embedding: embedding
-obs_embedding: embedding
+var_embedding: embedding_pca
+obs_embedding: X_scVI

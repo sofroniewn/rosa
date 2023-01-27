@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Dict, Optional
 
 import anndata as ad
 import numpy as np
@@ -8,7 +8,9 @@ from sklearn.decomposition import PCA
 from tqdm import tqdm
 
 
-def add_gene_embeddings(adata, seqs, embeds):
+def add_gene_embeddings(
+    adata: ad.AnnData, seqs: pd.DataFrame, embeds: np.ndarray
+) -> ad.AnnData:
     """Add gene embeddings to an anndata object.
 
     Parameters
@@ -56,18 +58,23 @@ def add_gene_embeddings(adata, seqs, embeds):
     return adata
 
 
-def add_train_indicators(adata, fraction=0.7, seed=None):
+def add_train_indicators(
+    adata: ad.AnnData,
+    fraction: float = 0.7,
+    seed: Optional[int] = None,
+    train_key: str = "train",
+) -> ad.AnnData:
     # Set train indicator
     if seed is None:
         np.random.seed(42)
     else:
         np.random.seed(seed)
-    adata.var["train"] = np.random.rand(adata.n_vars) <= fraction
-    adata.obs["train"] = np.random.rand(adata.n_obs) <= fraction
+    adata.var[train_key] = np.random.rand(adata.n_vars) <= fraction
+    adata.obs[train_key] = np.random.rand(adata.n_obs) <= fraction
     return adata
 
 
-def add_gene_biotype(adata):
+def add_gene_biotype(adata: ad.AnnData) -> ad.AnnData:
     print("Adding gene biotypes")
     # Retrieve gene symbols
     annot = sc.queries.biomart_annotations(
@@ -76,6 +83,7 @@ def add_gene_biotype(adata):
         use_cache=True,
     ).set_index("ensembl_gene_id")
 
+    print(f"Annotations for {len(annot)} genes")
     # Keep only matching genes
     annot = annot[annot.index.isin(adata.var.index)]
     adata = adata[:, adata.var.index.isin(annot.index)]
@@ -83,36 +91,31 @@ def add_gene_biotype(adata):
     return adata
 
 
-def normalize_expression(adata, method="Log1p", target_sum=1e5):
+def normalize_expression(
+    adata: ad.AnnData, log1p: bool = True, target_sum: Optional[int] = 10_000
+) -> ad.AnnData:
     # Store counts in seperate layer
     adata.layers["counts"] = adata.X.copy()
-
-    if method == "Log1p":
+    if target_sum is not None:
         # Normalize by library size
         print(f"Relative library size {adata.X.sum(axis=1).mean() / target_sum}")
         sc.pp.normalize_total(adata, target_sum=target_sum)
         adata.layers["normalized_counts"] = adata.X.copy()
+
+    if log1p:
         # Log1p transform expression
         sc.pp.log1p(adata)
         adata.layers["log1p"] = adata.X.copy()
-    elif method == "Pearson":
-        # Pearson normalize
-        adata.X = np.ceil(adata.X)
-        sc.pp.filter_genes(adata, min_cells=1)
-        sc.experimental.pp.normalize_pearson_residuals(adata)
-        adata.X[adata.X < 0] = 0
-        adata.layers["pearson"] = adata.X.copy()
-    else:
-        raise ValueError(f"Method {method} not recognized")
-
     return adata
 
 
 def clean_cells_genes(adata):
-    # Drop cell/ tissue types with less than 50 cells
-    drop_cells = adata.obs["count"] < 50
-    print(f"Dropping {drop_cells.sum()} cell/tissue types")
-    adata = adata[np.logical_not(drop_cells), :]
+    sc.pp.filter_cells(adata, min_genes=1)
+
+    # # Drop cell/ tissue types with less than 50 cells
+    # drop_cells = adata.obs["count"] < 50
+    # print(f"Dropping {drop_cells.sum()} cell/tissue types")
+    # adata = adata[np.logical_not(drop_cells), :]
 
     # Drop genes for which no expression recorded
     drop_genes = adata.X.sum(axis=0) == 0
@@ -126,7 +129,7 @@ def clean_cells_genes(adata):
     return adata
 
 
-def calculate_cell_embeddings_pca(adata):
+def calculate_cell_embeddings_pca(adata: ad.AnnData, n_pcs: int = 512) -> ad.AnnData:
     # consider only training cells and genes
     train_cells = adata.obs["train"]
     train_genes = adata.var["train"]
@@ -137,14 +140,36 @@ def calculate_cell_embeddings_pca(adata):
     pca.fit(adata_train.X)
 
     # compute scores for all cells
-    full_cell_embeddings = pca.transform(adata[:, train_genes].X)
+    pca_expression = pca.transform(adata[:, train_genes].X)
 
     # add cell embeddings to obsm
-    adata.obsm["embedding"] = full_cell_embeddings
+    adata.obsm["embedding"] = pca_expression[:, :n_pcs]
+    adata.uns["obs_embedding_pca"] = {
+        "explained_variance": np.cumsum(pca.explained_variance_ratio_)[n_pcs]
+    }
     return adata
 
 
-def add_dendrogram_and_hvgs(adata):
+def calculate_gene_embeddings_pca(adata: ad.AnnData, n_pcs: int = 512) -> ad.AnnData:
+    # consider only training cells and genes
+    # train_genes = adata.var["train"]
+    # adata_train = adata[:, train_genes]
+
+    embedding = adata.varm["embedding"]
+    # fit pca on training data
+    pca = PCA()
+    pca.fit(embedding)
+    pca_embedding = pca.transform(embedding)
+
+    # add cell embeddings to obsm
+    adata.varm["embedding_pca"] = pca_embedding[:, :n_pcs]
+    adata.uns["var_embedding_pca"] = {
+        "explained_variance": np.cumsum(pca.explained_variance_ratio_)[n_pcs]
+    }
+    return adata
+
+
+def add_dendrogram_and_hvgs(adata: ad.AnnData) -> ad.AnnData:
     # Add highly variable genes
     adata.uns["log1p"]["base"] = None  # needed to deal with error?
     sc.pp.highly_variable_genes(adata, min_mean=0.0125, max_mean=3, min_disp=0.5)
@@ -154,7 +179,7 @@ def add_dendrogram_and_hvgs(adata):
     return adata
 
 
-def average_expression_per_feature(adata, feature_name):
+def average_expression_per_feature(adata: ad.AnnData, feature_name: str) -> ad.AnnData:
     features = adata.obs[feature_name].value_counts()
     n_features = len(features)
     n_var = len(adata.var)
@@ -174,10 +199,12 @@ def average_expression_per_feature(adata, feature_name):
     return ad.AnnData(X=features_by_var, obs=obs, var=adata.var)
 
 
-def add_marker_genes(adata, differential_expression):
+def add_marker_genes(
+    adata: ad.AnnData, differential_expression: pd.DataFrame
+) -> ad.AnnData:
     # Add differentially expressed genes in test dataset
     test_genes = np.logical_not(adata.var["train"])
-    marker_genes_dict = {}
+    marker_genes_dict = {}  # type: Dict[str, str]
     cats = adata.obs.label.cat.categories
     for i, c in enumerate(cats):
         cid = "{} vs Rest".format(c)
@@ -208,7 +235,11 @@ def add_marker_genes(adata, differential_expression):
 
 
 def bin_expression(
-    adata: ad.AnnData, n_bins: int, input_layer: Optional[str] = None
+    adata: ad.AnnData,
+    n_bins: int,
+    input_layer: Optional[str] = None,
+    output_edges: str = "bin_edges",
+    output_layer: str = "binned",
 ) -> ad.AnnData:
     binned_X = []
     bin_edges = []
@@ -228,27 +259,34 @@ def bin_expression(
         binned_X.append(binned_obs)
         bin_edges.append(np.concatenate([[0], bins]))
 
-    adata.layers["binned"] = np.stack(binned_X)
-    adata.obsm["bin_edges"] = np.stack(bin_edges)
+    adata.layers[output_layer] = np.stack(binned_X)
+    adata.obsm[output_edges] = np.stack(bin_edges)
 
     return adata
 
 
 def reconstruct_expression(
     adata: ad.AnnData,
-    input_layer: str = "binned",
+    input_layer: Optional[str] = "binned",
     input_edges: str = "bin_edges",
     output_layer: str = "reconstructed",
 ) -> ad.AnnData:
+    if input_layer is None:
+        binned_data = adata.X
+    else:
+        binned_data = adata.layers[input_layer]
+
     reconstructed_X = []
-    for binned_obs, bins in zip(adata.layers[input_layer], adata.obsm[input_edges]):
+    for binned_obs, bins in zip(binned_data, adata.obsm[input_edges]):
         bin_sizes = np.diff(bins[1:])
         cumulative_sum = np.cumsum(bin_sizes)
         bin_centers = cumulative_sum - bin_sizes / 2
         # Add zero bin so zero values get mapped to zero, add max value so number of bins correct
         bin_centers = np.concatenate([[0], bin_centers, [bins[-1]]])
         # ensure binned_obs in valid range
-        binned_obs_valid = np.clip(np.round(binned_obs), 0, len(bin_centers)-1).astype(int)
+        binned_obs_valid = np.clip(
+            np.round(binned_obs), 0, len(bin_centers) - 1
+        ).astype(int)
         # reconstruct expression
         reconstructed_X.append(bin_centers[binned_obs_valid])
 

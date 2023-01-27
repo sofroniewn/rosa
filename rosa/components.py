@@ -61,7 +61,7 @@ class SingleHead(nn.Module):
             self.fc = nn.Identity()
         else:
             raise ValueError(f"Model type {self.head} not recognized")
-        
+
         # self.act1 = nn.ReLU()
         # self.fc2 = nn.Linear(out_dim, 128 * out_dim)
         # self.norm = nn.BatchNorm1d(out_dim)
@@ -75,9 +75,9 @@ class SingleHead(nn.Module):
     def forward(self, x):
         x = self.fc(x)
         # x = self.act1(x)
-        # x = self.norm(x)
+        # # x = self.norm(x)
         # x = self.fc2(x)
-        # x = x.view(-1, 256, self.out_dim)
+        # x = x.view(-1, 128, self.out_dim)
         # x = torch.exp(x)
         # x = self.act(x)
         # # x = x * x.shape[0] * self.mult
@@ -96,7 +96,7 @@ class MLP(nn.Module):
             nn.Linear(in_features=hidden_dim, out_features=hidden_dim, bias=True),
             nn.Softplus(),
             nn.Dropout(dropout),
-            nn.Linear(in_features=hidden_dim, out_features=out_dim, bias=True)
+            nn.Linear(in_features=hidden_dim, out_features=out_dim, bias=True),
         )
 
     def forward(self, x):

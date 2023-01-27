@@ -9,7 +9,7 @@ cs = ConfigStore.instance()
 cs.store(name="rosa_config", node=RosaConfig)
 
 
-def predict(cfg: RosaConfig, chkpt:str) -> ad.AnnData:    
+def predict(cfg: RosaConfig, chkpt: str) -> ad.AnnData:
     # Create Data Module
     rdm = RosaDataModule(
         cfg.paths.adata,
@@ -21,7 +21,8 @@ def predict(cfg: RosaConfig, chkpt:str) -> ad.AnnData:
     rdm.setup()
 
     # Load model from checkpoint
-    rlm = RosaLightningModule.load_from_checkpoint(chkpt,
+    rlm = RosaLightningModule.load_from_checkpoint(
+        chkpt,
         in_dim=rdm.len_embedding,
         out_dim=rdm.len_target,
         model_cfg=cfg.model,

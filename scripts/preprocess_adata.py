@@ -13,6 +13,7 @@ from rosa.preprocessing import (
     add_marker_genes,
     add_dendrogram_and_hvgs,
     bin_expression,
+    calculate_gene_embeddings_pca,
 )
 
 
@@ -20,8 +21,9 @@ BASE_PT = "/Users/nsofroniew/Documents/data/multiomics/enformer"
 
 GENE_INTERVALS_PT = BASE_PT + "/Homo_sapiens.GRCh38.genes.bed"
 EMBEDDING_PT = BASE_PT + "/Homo_sapiens.GRCh38.genes.enformer_tss_embedding.zarr"
-RAW_ADATA_PT = "/Users/nsofroniew/Documents/data/multiomics/cell_census/tabula_sapiens_by_features.h5ad"
-EMBEDS_ADATA_PT = "/Users/nsofroniew/Documents/data/multiomics/cell_census/tabula_sapiens_by_features_with_embeds_new_norm.h5ad"
+# RAW_ADATA_PT = "/Users/nsofroniew/Documents/data/multiomics/cell_census/tabula_sapiens_by_features.h5ad"
+RAW_ADATA_PT = "/Users/nsofroniew/Documents/data/multiomics/cell_census/tabula_sapiens_pbulk.h5ad"
+EMBEDS_ADATA_PT = "/Users/nsofroniew/Documents/data/multiomics/cell_census/tabula_sapiens_pbulk_embeds.h5ad"
 TABULA_SAPIENS_BY_CELL_TYPE_SCVI_DE = "/Users/nsofroniew/Documents/data/multiomics/cell_census/tabula_sapiens_by_features_scvi_model_new_norm_de.csv"
 
 # Read gene intervals
@@ -34,23 +36,29 @@ embeds = np.asarray(zarr.open(EMBEDDING_PT))
 
 # Load anndata raw anndata file
 adata = ad.read_h5ad(RAW_ADATA_PT)
+
+print(adata)
+
 # Set index to be feature id which is ensmbl id
-# adata.var.set_index("feature_id")
+adata.var.set_index("feature_id", inplace=True)
 
 # Fix cell type / tissue label issue
 adata.obs_names_make_unique()
-adata.obs["label"] = (
-    adata.obs["cell_type"]
-    .astype(object)
-    .combine_first(adata.obs["tissue"].astype(object))
-    .astype("category")
-)
+adata.obs["label"] = adata.obs["cell_type"]
+# adata.obs["label"] = (
+#     adata.obs["cell_type"]
+#     .astype(object)
+#     .combine_first(adata.obs["tissue"].astype(object))
+#     .astype("category")
+# )
 
 
 # # Add gene biotypes
-# adata = add_gene_biotype(adata)
+adata = add_gene_biotype(adata)
 # Add embeddings
 adata = add_gene_embeddings(adata, seqs, embeds)
+adata = calculate_gene_embeddings_pca(adata, 128)
+
 # Add train indicators
 adata = add_train_indicators(adata, fraction=0.7, seed=42)
 
@@ -61,14 +69,16 @@ adata = normalize_expression(adata)
 # Bin expression
 adata = bin_expression(adata, n_bins=128)
 
-# Calculate and add cell embeddings using only traning data
-adata = calculate_cell_embeddings_pca(adata)
+# # Calculate and add cell embeddings using only traning data
+adata = calculate_cell_embeddings_pca(adata, 128)
+
 
 # Add dendrogram, hvgs, and marker genes
 adata = add_dendrogram_and_hvgs(adata)
-de_df = pd.read_csv(TABULA_SAPIENS_BY_CELL_TYPE_SCVI_DE, index_col=0)
-adata = add_marker_genes(adata, differential_expression=de_df)
+# # de_df = pd.read_csv(TABULA_SAPIENS_BY_CELL_TYPE_SCVI_DE, index_col=0)
+# # adata = add_marker_genes(adata, differential_expression=de_df)
 
 # Write preprocessed anndata file
 print("Saving anndata file")
+print(adata)
 adata.write_h5ad(EMBEDS_ADATA_PT)

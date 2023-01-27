@@ -3,7 +3,7 @@ import numpy as np
 import scanpy as sc
 
 
-def plot_marker_gene_heatmap(adata, marker_genes):
+def plot_marker_gene_heatmap(adata, marker_genes, output_layer: str = "prediction"):
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 12), gridspec_kw={"wspace": 0})
     sc.pl.matrixplot(
         adata,
@@ -29,12 +29,12 @@ def plot_marker_gene_heatmap(adata, marker_genes):
         marker_genes,
         groupby="label",
         gene_symbols="feature_name",
-        layer="prediction",
+        layer=output_layer,
         vmin=0,
         vmax=6,
         ax=ax2,
         show=False,
-        title="predicted",
+        title=output_layer,
         dendrogram=True,
     )
     fig.axes[-1].remove()

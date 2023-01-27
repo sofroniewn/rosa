@@ -1,4 +1,4 @@
 embedding_type: gene
-expression_layer: binned
-var_embedding: embedding
+expression_layer: null
+var_embedding: embedding_pca
 obs_embedding: null

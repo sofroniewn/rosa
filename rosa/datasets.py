@@ -47,6 +47,11 @@ class RosaDataset(Dataset):
         self._VAR_EMBEDDING_KEY = var_embedding
         self._OBS_EMBEDDING_KEY = obs_embedding
 
+        if self._EXPRESSION_LAYER_KEY == "binned":
+            self._expression_type = torch.long
+        else:
+            self._expression_type = torch.float32
+
         # expression shape n_obs x n_var
         if self._EXPRESSION_LAYER_KEY is None:
             self.expression = self.adata.X  # type: np.ndarray
@@ -108,7 +113,7 @@ class RosaDataset(Dataset):
             var = self.var_embedding[var_j]
             expression = self.expression[obs_i, var_j]
             # Move to torch
-            expression = torch.tensor(expression).type(torch.float32)
+            expression = torch.tensor(expression).type(self._expression_type)
             obs = torch.from_numpy(obs).type(torch.float32)
             var = torch.from_numpy(var).type(torch.float32)
             return (obs, var), expression
@@ -117,7 +122,7 @@ class RosaDataset(Dataset):
             var = self.var_embedding[idx]
             expression = self.expression[:, idx]
             # Move to torch
-            expression = torch.from_numpy(expression).type(torch.float32)
+            expression = torch.tensor(expression).type(self._expression_type)
             var = torch.from_numpy(var).type(torch.float32)
             return var, expression
         if self.embedding_type == EmbeddingType.OBS:
@@ -125,7 +130,7 @@ class RosaDataset(Dataset):
             obs = self.obs_embedding[idx]
             expression = self.expression[idx, :]
             # Move to torch
-            expression = torch.from_numpy(expression).type(torch.float32)
+            expression = torch.tensor(expression).type(self._expression_type)
             obs = torch.from_numpy(obs).type(torch.float32)
             return obs, expression
 
@@ -137,16 +142,18 @@ class RosaDataset(Dataset):
         if self.embedding_type == EmbeddingType.JOINT:
             prediction = torch.concat(results).numpy().reshape(self._n_obs, self._n_var)
         elif self.embedding_type == EmbeddingType.OBS:
-            prediction =  torch.concat(results).numpy()
+            prediction = torch.concat(results).numpy()
         elif self.embedding_type == EmbeddingType.VAR:
-            prediction =  torch.concat(results).numpy().T
+            prediction = torch.concat(results).numpy().T
         else:
             raise ValueError(
                 f"Type {self.embedding_type.name} not recognized, must be one of {list(EmbeddingType.__members__)}"
             )
 
-        if self._EXPRESSION_LAYER_KEY == 'binned':
-                self.adata.layers['binned_prediction'] = prediction
-                reconstruct_expression(self.adata, input_layer='binned_prediction', output_layer='prediction')                
+        if self._EXPRESSION_LAYER_KEY == "binned":
+            self.adata.layers["binned_prediction"] = prediction
+            reconstruct_expression(
+                self.adata, input_layer="binned_prediction", output_layer="prediction"
+            )
         else:
-            self.adata.layers['prediction'] = prediction
+            self.adata.layers["prediction"] = prediction
