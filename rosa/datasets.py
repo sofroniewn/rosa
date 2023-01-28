@@ -1,6 +1,6 @@
 import warnings
 from enum import Enum, auto
-from typing import Any, List, Optional, Tuple, Union
+from typing import Any, List, Optional, Tuple, Union, Callable
 
 import numpy as np
 import torch
@@ -17,6 +17,85 @@ class EmbeddingType(Enum):
     JOINT = auto()
     VAR = auto()
     OBS = auto()
+
+
+class RosaObsDataset(Dataset):
+    """
+    For a given obs try and predict all of its expression values from
+    a embeding of that obs and all of the var embeddings
+    """
+    def __init__(
+        self,
+        adata: AnnData,
+        expression_layer: Optional[str] = None,
+        var_embedding: str = 'embedding',
+        obs_embedding: Optional[str] = 'embedding',
+        transform: Optional[Callable] = None,
+        obs_transform: Optional[Callable] = None
+    ) -> None:
+        # Store inputs
+        self.adata = adata
+        self.transform = transform
+        self.obs_transform = obs_transform
+
+        # Store target keys
+        self._EXPRESSION_LAYER_KEY = expression_layer
+        self._VAR_EMBEDDING_KEY = var_embedding
+        self._OBS_EMBEDDING_KEY = obs_embedding
+
+        # expression shape n_obs x n_var
+        if self._EXPRESSION_LAYER_KEY is None:
+            self._expression = self.adata.X  # type: np.ndarray
+        else:
+            self._expression = self.adata.layers[self._EXPRESSION_LAYER_KEY]
+        self._n_obs, self._n_var = self._expression.shape
+
+        # var embedding shape n_var x var embedding length
+        self._var_embedding = self.adata.varm[
+            self._VAR_EMBEDDING_KEY
+        ]  # type: np.ndarray
+        self._len_var_embedding = self._var_embedding.shape[1]
+
+        if self._OBS_EMBEDDING_KEY is not None:
+            # var embedding shape n_var x var embedding length
+            self._obs_embedding = self.adata.obsm[
+                self._OBS_EMBEDDING_KEY
+            ]  # type: np.ndarray
+        else:
+            # Use actual expression for the obs
+            self._obs_embedding = np.empty((self._n_obs, 0))
+        self._len_obs_embedding = self._obs_embedding.shape[1]
+
+        self.len_embedding = (
+            self._len_obs_embedding,
+            self._len_var_embedding,
+        )  # type: Tuple[int, int]
+        self.len_target = self._n_var
+        
+        # Extract from numpy to torch
+        self.expression = torch.from_numpy(self._expression).type(torch.float32)
+        self.var_embedding = torch.from_numpy(self._var_embedding).type(torch.float32)
+        self.obs_embedding = torch.from_numpy(self._obs_embedding).type(torch.float32)
+
+    def __len__(self) -> int:
+            return self._n_obs
+
+    def __getitem__(self, idx) -> Tuple[Tuple[Tensor, Tensor], Tensor]:
+        expression = self.expression[idx, :]
+        obs = self.obs_embedding[idx]
+
+        if self.transform is not None:
+            expression = self.transform(expression)
+
+        if self.obs_transform is not None:
+            obs = self.obs_transform(obs)
+
+        var = self.var_embedding
+        return (obs, var), expression
+
+    def postprocess(self, results: List[Any]):
+        prediction = torch.concat(results).numpy()
+        self.adata.layers["prediction"] = prediction
 
 
 class RosaDataset(Dataset):
