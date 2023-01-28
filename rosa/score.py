@@ -3,9 +3,9 @@ import warnings
 import anndata as ad
 import numpy as np
 import scanpy as sc
-from scipy.stats import ConstantInputWarning, kstest, spearmanr
+from scipy.stats import kstest, spearmanr
 
-warnings.filterwarnings("ignore", category=ConstantInputWarning)
+# warnings.filterwarnings("ignore", category=ConstantInputWarning)
 warnings.filterwarnings("ignore", category=ad.ImplicitModificationWarning)
 
 

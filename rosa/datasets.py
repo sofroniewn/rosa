@@ -185,6 +185,7 @@ class RosaDataset(Dataset):
         )
 
     def __getitem__(self, idx) -> Tuple[Union[Tuple[Tensor, Tensor], Tensor], Tensor]:
+        base_pt = '/home/ec2-user/enformer/Homo_sapiens.GRCh38.genes.enformer_embeddings'
         if self.embedding_type == EmbeddingType.JOINT:
             # Extract data
             obs_i, var_j = np.unravel_index(idx, (self._n_obs, self._n_var))
@@ -198,7 +199,10 @@ class RosaDataset(Dataset):
             return (obs, var), expression
         if self.embedding_type == EmbeddingType.VAR:
             # Extract data
-            var = self.var_embedding[idx]
+            # var = self.var_embedding[idx]
+            var_id = self.adata.var.iloc[idx].name
+            full_pt = f'{base_pt}/{var_id}.pt'
+            var = torch.load(full_pt)['embedding']
             expression = self.expression[:, idx]
             # Move to torch
             expression = torch.tensor(expression).type(self._expression_type)

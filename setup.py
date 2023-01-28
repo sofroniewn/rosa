@@ -10,7 +10,7 @@ with open('README.rst') as readme_file:
 with open('HISTORY.rst') as history_file:
     history = history_file.read()
 
-requirements = [ ]
+requirements = ['hydra-core>=1.3', 'anndata>=0.8.0', 'pytorch_lightning>=1.26.11', 'scanpy', 'scvi-tools']
 
 test_requirements = ['pytest>=3', ]
 

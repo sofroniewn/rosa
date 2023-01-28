@@ -39,7 +39,7 @@ def train(cfg: RosaConfig) -> None:
         # log_every_n_steps=10_000,
         logger=TensorBoardLogger(".", "", ""),
         resume_from_checkpoint=cfg.paths.chkpt,
-        accelerator="cpu",
+        accelerator="cuda",
         devices=1,
         callbacks=[checkpoint_callback],
         gradient_clip_val=10,

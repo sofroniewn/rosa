@@ -52,7 +52,8 @@ class SingleHead(nn.Module):
         self.head = head
         self.out_dim = out_dim
         if self.head == "linear":
-            self.fc = nn.Linear(in_features=in_dim, out_features=out_dim)
+            self.conv = nn.Conv2d(1, 10, (896, 1))
+            self.fc = nn.Linear(in_features=in_dim * 10, out_features=out_dim)
         elif self.head == "MLP":
             self.fc = MLP(in_dim=in_dim, out_dim=out_dim, dropout=0.5)
         elif self.head == "OneHot":
@@ -73,6 +74,9 @@ class SingleHead(nn.Module):
         # self.mult = nn.Parameter(torch.tensor(1.0))
 
     def forward(self, x):
+        x = x.unsqueeze(1)
+        x = self.conv(x)
+        x = x.view(x.shape[0], -1)
         x = self.fc(x)
         # x = self.act1(x)
         # # x = self.norm(x)

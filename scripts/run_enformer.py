@@ -23,11 +23,11 @@ if __name__ == "__main__":
 
     torch.multiprocessing.freeze_support()
 
-    # BASE_PT = "/home/ec2-user/enformer"
-    # DEVICE = "cuda:0"
+    BASE_PT = "/home/ec2-user/enformer"
+    DEVICE = "cuda:0"
 
-    BASE_PT = "/Users/nsofroniew/Documents/data/multiomics/enformer"
-    DEVICE = "cpu"
+    # BASE_PT = "/Users/nsofroniew/Documents/data/multiomics/enformer"
+    # DEVICE = "cpu"
 
     FASTA_PT = BASE_PT + "/Homo_sapiens.GRCh38.dna.toplevel.fa"
     GENE_INTERVALS_PT = BASE_PT + "/Homo_sapiens.GRCh38.genes.bed"
@@ -63,7 +63,7 @@ if __name__ == "__main__":
         # calculate embedding
         with torch.no_grad():
             output, embeddings = model(batch.to(DEVICE), return_embeddings=True)
-            embeddings = embeddings.detach().cpu().numpy()
+            embeddings = embeddings.detach().cpu()
 
         # Save data for each gene sequence individually
         for embed, label in zip(embeddings, labels):
