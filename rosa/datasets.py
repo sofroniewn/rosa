@@ -240,3 +240,98 @@ class RosaDataset(Dataset):
             )
         else:
             self.adata.layers["prediction"] = prediction
+
+
+
+class RosaNewDataset(Dataset):
+    def __init__(
+        self,
+        adata: AnnData,
+        expression_layer: Optional[str] = None,
+        var_embedding: Optional[str] = None,
+        obs_embedding: Optional[str] = None,
+        expression_transform_config: Optional[Any] = None,
+    ):
+        if obs_embedding is not None and var_embedding is not None:
+            self.embedding_type = EmbeddingType.JOINT
+        elif obs_embedding is None and var_embedding is not None:
+
+            self.embedding_type = EmbeddingType.VAR
+        elif obs_embedding is not None and var_embedding is None:
+            self.embedding_type = EmbeddingType.OBS
+        else:
+            raise ValueError(
+                "One of the var embedding or the obs embedding must not be None"
+            )
+
+            super().__init__(expression, embedding, expression_transform_config)
+
+
+class _RosaBaseSingleDataset(Dataset):
+    """Return a single embedding and experession vector"""
+    def __init__(
+        self,
+        expression: np.ndarray,
+        embedding: np.ndarray,
+        expression_transform_config: Optional[Any] = None,
+    ) -> None:
+
+        if not expression.shape[0] == embedding.shape[0]:
+            raise ValueError(f'Number of expression and embedding values must match, got {expression.shape[0]} and {embedding.shape[0]}')
+
+        self.expression = expression
+        self.embedding = embedding
+        self.embedding_dim = self.embedding.shape[1]
+
+        self.expression_transform = ExpressionTransform(expression_transform_config)
+        self.embedding_transform = ToTensor()
+
+    def __len__(self) -> int:
+        self.expression.shape[0]
+
+    def __getitem__(self, idx: int) -> Tuple[Tensor, Tensor]:
+        return (
+            self.embedding_transform(self.embedding[idx]),
+            self.expression_transform(self.expression[idx])
+            )
+
+    def postprocess(self, results: List[Tensor]) -> np.ndarray:
+        return torch.concat(results).numpy()
+
+
+class _RosaBaseJointDataset(Dataset):
+    """Return two embeddings and an experession value"""
+    def __init__(
+        self,
+        expression: np.ndarray,
+        embedding: Tuple[np.ndarray, np.ndarray],
+        expression_transform_config: Optional[Any] = None,
+    ) -> None:
+
+        if not expression.shape[0] == embedding[0].shape[0]:
+            raise ValueError(f'Number of expression and first embedding values must match, got {expression.shape[0]} and {embedding[0].shape[0]}')
+
+        if not expression.shape[1] == embedding[1].shape[0]:
+            raise ValueError(f'Number of expression and second embedding values must match, got {expression.shape[1]} and {embedding[1].shape[0]}')
+
+
+        self.expression = expression
+        self.embedding = embedding
+        self.embedding_dims = (e.shape[1] for e in self.embedding)  # type: Tuple[int, int]
+
+        self.expression_transform = ExpressionTransform(expression_transform_config)
+        self.embedding_transform = ToTensor()
+
+    def __len__(self) -> int:
+        self.expression.shape[0] * self.expression.shape[1]
+
+    def __getitem__(self, idx: int) -> Tuple[Tuple[Tensor, Tensor], Tensor]:
+        idx_0, idx_1 = np.unravel_index(idx, self.expression.shape)
+        return ((
+            self.embedding_transform(self.expression[0][idx_0]),
+            self.embedding_transform(self.expression[1][idx_1])),
+            self.expression_transform(self.expression[idx_0])[idx_1]
+            )
+
+    def postprocess(self, results: List[Tensor]) -> np.ndarray:
+        return torch.concat(results).numpy()
