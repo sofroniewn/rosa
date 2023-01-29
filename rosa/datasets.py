@@ -1,6 +1,6 @@
 import warnings
-from enum import Enum, auto
-from typing import Any, List, Optional, Tuple, Union, Callable
+from typing import List, Optional, Tuple, Union
+from dataclasses import dataclass
 
 import numpy as np
 import torch
@@ -9,329 +9,211 @@ from torch import Tensor
 from torch.utils.data import Dataset
 
 from .preprocessing import reconstruct_expression
+from .transforms import ExpressionTransform, ToTensor
+from .config import ExpressionTransformConfig, DataConfig
+
 
 warnings.simplefilter(action="ignore", category=FutureWarning)
 
 
-class EmbeddingType(Enum):
-    JOINT = auto()
-    VAR = auto()
-    OBS = auto()
-
-
-class RosaObsDataset(Dataset):
-    """
-    For a given obs try and predict all of its expression values from
-    a embeding of that obs and all of the var embeddings
-    """
-    def __init__(
-        self,
-        adata: AnnData,
-        expression_layer: Optional[str] = None,
-        var_embedding: str = 'embedding',
-        obs_embedding: Optional[str] = 'embedding',
-        transform: Optional[Callable] = None,
-        obs_transform: Optional[Callable] = None
-    ) -> None:
-        # Store inputs
-        self.adata = adata
-        self.transform = transform
-        self.obs_transform = obs_transform
-
-        # Store target keys
-        self._EXPRESSION_LAYER_KEY = expression_layer
-        self._VAR_EMBEDDING_KEY = var_embedding
-        self._OBS_EMBEDDING_KEY = obs_embedding
-
-        # expression shape n_obs x n_var
-        if self._EXPRESSION_LAYER_KEY is None:
-            self._expression = self.adata.X  # type: np.ndarray
-        else:
-            self._expression = self.adata.layers[self._EXPRESSION_LAYER_KEY]
-        self._n_obs, self._n_var = self._expression.shape
-
-        # var embedding shape n_var x var embedding length
-        self._var_embedding = self.adata.varm[
-            self._VAR_EMBEDDING_KEY
-        ]  # type: np.ndarray
-        self._len_var_embedding = self._var_embedding.shape[1]
-
-        if self._OBS_EMBEDDING_KEY is not None:
-            # var embedding shape n_var x var embedding length
-            self._obs_embedding = self.adata.obsm[
-                self._OBS_EMBEDDING_KEY
-            ]  # type: np.ndarray
-        else:
-            # Use actual expression for the obs
-            self._obs_embedding = np.empty((self._n_obs, 0))
-        self._len_obs_embedding = self._obs_embedding.shape[1]
-
-        self.len_embedding = (
-            self._len_obs_embedding,
-            self._len_var_embedding,
-        )  # type: Tuple[int, int]
-        self.len_target = self._n_var
-        
-        # Extract from numpy to torch
-        self.expression = torch.from_numpy(self._expression).type(torch.float32)
-        self.var_embedding = torch.from_numpy(self._var_embedding).type(torch.float32)
-        self.obs_embedding = torch.from_numpy(self._obs_embedding).type(torch.float32)
-
-    def __len__(self) -> int:
-            return self._n_obs
-
-    def __getitem__(self, idx) -> Tuple[Tuple[Tensor, Tensor], Tensor]:
-        expression = self.expression[idx, :]
-        obs = self.obs_embedding[idx]
-
-        if self.transform is not None:
-            expression = self.transform(expression)
-
-        if self.obs_transform is not None:
-            obs = self.obs_transform(obs)
-
-        var = self.var_embedding
-        return (obs, var), expression
-
-    def postprocess(self, results: List[Any]):
-        prediction = torch.concat(results).numpy()
-        self.adata.layers["prediction"] = prediction
-
-
-class RosaDataset(Dataset):
-    """Return obs and var embeddings as needed along with experession"""
+class _SingleDataset(Dataset):
+    """Return a single input and experession vector"""
 
     def __init__(
         self,
-        adata: AnnData,
-        expression_layer: Optional[str] = None,
-        var_embedding: Optional[str] = None,
-        obs_embedding: Optional[str] = None,
-    ) -> None:
-        if obs_embedding is not None and var_embedding is not None:
-            self.embedding_type = EmbeddingType.JOINT
-        elif obs_embedding is None and var_embedding is not None:
-            self.embedding_type = EmbeddingType.VAR
-        elif obs_embedding is not None and var_embedding is None:
-            self.embedding_type = EmbeddingType.OBS
-        else:
-            raise ValueError(
-                "One of the var embedding or the obs embedding must not be None"
-            )
-
-        self.adata = adata
-
-        # Store input and target keys
-        self._EXPRESSION_LAYER_KEY = expression_layer
-        self._VAR_EMBEDDING_KEY = var_embedding
-        self._OBS_EMBEDDING_KEY = obs_embedding
-
-        if self._EXPRESSION_LAYER_KEY == "binned":
-            self._expression_type = torch.long
-        else:
-            self._expression_type = torch.float32
-
-        # expression shape n_obs x n_var
-        if self._EXPRESSION_LAYER_KEY is None:
-            self.expression = self.adata.X  # type: np.ndarray
-        else:
-            self.expression = self.adata.layers[self._EXPRESSION_LAYER_KEY]
-        self._n_obs, self._n_var = self.expression.shape
-
-        if self._VAR_EMBEDDING_KEY is not None:
-            # var embedding shape n_var x var embedding length
-            self.var_embedding = self.adata.varm[
-                self._VAR_EMBEDDING_KEY
-            ]  # type: np.ndarray
-        else:
-            self.var_embedding = np.empty((self._n_var, 0))
-        self._len_var_embedding = self.var_embedding.shape[1]
-
-        if self._OBS_EMBEDDING_KEY is not None:
-            # var embedding shape n_var x var embedding length
-            self.obs_embedding = self.adata.obsm[
-                self._OBS_EMBEDDING_KEY
-            ]  # type: np.ndarray
-        else:
-            self.obs_embedding = np.empty((self._n_obs, 0))
-        self._len_obs_embedding = self.obs_embedding.shape[1]
-
-        if self.embedding_type == EmbeddingType.JOINT:
-            self.len_embedding = (
-                self._len_obs_embedding,
-                self._len_var_embedding,
-            )  # type: Union[int, Tuple[int, int]]
-            self.len_target = 1
-        elif self.embedding_type == EmbeddingType.VAR:
-            self.len_embedding = self._len_var_embedding
-            self.len_target = self._n_obs
-        elif self.embedding_type == EmbeddingType.OBS:
-            self.len_embedding = self._len_obs_embedding
-            self.len_target = self._n_var
-        else:
-            raise ValueError(
-                f"Type {self.embedding_type.name} not recognized, must be one of {list(EmbeddingType.__members__)}"
-            )
-
-    def __len__(self) -> int:
-        if self.embedding_type == EmbeddingType.JOINT:
-            return self._n_obs * self._n_var
-        if self.embedding_type == EmbeddingType.VAR:
-            return self._n_var
-        if self.embedding_type == EmbeddingType.OBS:
-            return self._n_obs
-        raise ValueError(
-            f"Type {self.embedding_type.name} not recognized, must be one of {list(EmbeddingType.__members__)}"
-        )
-
-    def __getitem__(self, idx) -> Tuple[Union[Tuple[Tensor, Tensor], Tensor], Tensor]:
-        base_pt = '/home/ec2-user/enformer/Homo_sapiens.GRCh38.genes.enformer_embeddings'
-        if self.embedding_type == EmbeddingType.JOINT:
-            # Extract data
-            obs_i, var_j = np.unravel_index(idx, (self._n_obs, self._n_var))
-            obs = self.obs_embedding[obs_i]
-            var = self.var_embedding[var_j]
-            expression = self.expression[obs_i, var_j]
-            # Move to torch
-            expression = torch.tensor(expression).type(self._expression_type)
-            obs = torch.from_numpy(obs).type(torch.float32)
-            var = torch.from_numpy(var).type(torch.float32)
-            return (obs, var), expression
-        if self.embedding_type == EmbeddingType.VAR:
-            # Extract data
-            # var = self.var_embedding[idx]
-            var_id = self.adata.var.iloc[idx].name
-            full_pt = f'{base_pt}/{var_id}.pt'
-            var = torch.load(full_pt)['embedding']
-            expression = self.expression[:, idx]
-            # Move to torch
-            expression = torch.tensor(expression).type(self._expression_type)
-            var = torch.from_numpy(var).type(torch.float32)
-            return var, expression
-        if self.embedding_type == EmbeddingType.OBS:
-            # Extract data
-            obs = self.obs_embedding[idx]
-            expression = self.expression[idx, :]
-            # Move to torch
-            expression = torch.tensor(expression).type(self._expression_type)
-            obs = torch.from_numpy(obs).type(torch.float32)
-            return obs, expression
-
-        raise ValueError(
-            f"Type {self.embedding_type.name} not recognized, must be one of {list(EmbeddingType.__members__)}"
-        )
-
-    def postprocess(self, results: List[Any]):
-        if self.embedding_type == EmbeddingType.JOINT:
-            prediction = torch.concat(results).numpy().reshape(self._n_obs, self._n_var)
-        elif self.embedding_type == EmbeddingType.OBS:
-            prediction = torch.concat(results).numpy()
-        elif self.embedding_type == EmbeddingType.VAR:
-            prediction = torch.concat(results).numpy().T
-        else:
-            raise ValueError(
-                f"Type {self.embedding_type.name} not recognized, must be one of {list(EmbeddingType.__members__)}"
-            )
-
-        if self._EXPRESSION_LAYER_KEY == "binned":
-            self.adata.layers["binned_prediction"] = prediction
-            reconstruct_expression(
-                self.adata, input_layer="binned_prediction", output_layer="prediction"
-            )
-        else:
-            self.adata.layers["prediction"] = prediction
-
-
-
-class RosaNewDataset(Dataset):
-    def __init__(
-        self,
-        adata: AnnData,
-        expression_layer: Optional[str] = None,
-        var_embedding: Optional[str] = None,
-        obs_embedding: Optional[str] = None,
-        expression_transform_config: Optional[Any] = None,
-    ):
-        if obs_embedding is not None and var_embedding is not None:
-            self.embedding_type = EmbeddingType.JOINT
-        elif obs_embedding is None and var_embedding is not None:
-
-            self.embedding_type = EmbeddingType.VAR
-        elif obs_embedding is not None and var_embedding is None:
-            self.embedding_type = EmbeddingType.OBS
-        else:
-            raise ValueError(
-                "One of the var embedding or the obs embedding must not be None"
-            )
-
-            super().__init__(expression, embedding, expression_transform_config)
-
-
-class _RosaBaseSingleDataset(Dataset):
-    """Return a single embedding and experession vector"""
-    def __init__(
-        self,
-        expression: np.ndarray,
-        embedding: np.ndarray,
-        expression_transform_config: Optional[Any] = None,
+        expression: torch.Tensor,
+        input: torch.Tensor,
     ) -> None:
 
-        if not expression.shape[0] == embedding.shape[0]:
-            raise ValueError(f'Number of expression and embedding values must match, got {expression.shape[0]} and {embedding.shape[0]}')
+        if not expression.shape[0] == input.shape[0]:
+            raise ValueError(
+                f"Number of expression and input values must match, got {expression.shape[0]} and {input.shape[0]}"
+            )
 
         self.expression = expression
-        self.embedding = embedding
-        self.embedding_dim = self.embedding.shape[1]
-
-        self.expression_transform = ExpressionTransform(expression_transform_config)
-        self.embedding_transform = ToTensor()
+        self.expression_dim = self.expression.shape[1]
+        self.input = input
+        self.input_dim = self.input.shape[1]
 
     def __len__(self) -> int:
-        self.expression.shape[0]
+        return self.expression.shape[0]
 
     def __getitem__(self, idx: int) -> Tuple[Tensor, Tensor]:
         return (
-            self.embedding_transform(self.embedding[idx]),
-            self.expression_transform(self.expression[idx])
-            )
+            self.input[idx],
+            self.expression[idx],
+        )
 
-    def postprocess(self, results: List[Tensor]) -> np.ndarray:
-        return torch.concat(results).numpy()
+    def _postprocess(self, results: List[Tensor]) -> torch.Tensor:
+        return torch.concat(results)
 
 
-class _RosaBaseJointDataset(Dataset):
-    """Return two embeddings and an experession value"""
+class _JointDataset(Dataset):
+    """Return two inputs and an experession value"""
+
     def __init__(
         self,
-        expression: np.ndarray,
-        embedding: Tuple[np.ndarray, np.ndarray],
-        expression_transform_config: Optional[Any] = None,
+        expression: torch.Tensor,
+        input: Tuple[torch.Tensor, torch.Tensor],
     ) -> None:
 
-        if not expression.shape[0] == embedding[0].shape[0]:
-            raise ValueError(f'Number of expression and first embedding values must match, got {expression.shape[0]} and {embedding[0].shape[0]}')
-
-        if not expression.shape[1] == embedding[1].shape[0]:
-            raise ValueError(f'Number of expression and second embedding values must match, got {expression.shape[1]} and {embedding[1].shape[0]}')
-
-
-        self.expression = expression
-        self.embedding = embedding
-        self.embedding_dims = (e.shape[1] for e in self.embedding)  # type: Tuple[int, int]
-
-        self.expression_transform = ExpressionTransform(expression_transform_config)
-        self.embedding_transform = ToTensor()
-
-    def __len__(self) -> int:
-        self.expression.shape[0] * self.expression.shape[1]
-
-    def __getitem__(self, idx: int) -> Tuple[Tuple[Tensor, Tensor], Tensor]:
-        idx_0, idx_1 = np.unravel_index(idx, self.expression.shape)
-        return ((
-            self.embedding_transform(self.expression[0][idx_0]),
-            self.embedding_transform(self.expression[1][idx_1])),
-            self.expression_transform(self.expression[idx_0])[idx_1]
+        if not expression.shape[0] == input[0].shape[0]:
+            raise ValueError(
+                f"Number of expression and first input values must match, got {expression.shape[0]} and {input[0].shape[0]}"
             )
 
-    def postprocess(self, results: List[Tensor]) -> np.ndarray:
-        return torch.concat(results).numpy()
+        if not expression.shape[1] == input[1].shape[0]:
+            raise ValueError(
+                f"Number of expression and second input values must match, got {expression.shape[1]} and {input[1].shape[0]}"
+            )
+
+        self.expression = expression
+        self.expression_dim = 1
+        self.input = input
+        self.input_dims = (
+            self.input[0].shape[1],
+            self.input[1].shape[1],
+        )
+
+    def __len__(self) -> int:
+        return self.expression.shape[0] * self.expression.shape[1]
+
+    def __getitem__(self, idx: int) -> Tuple[Tuple[Tensor, Tensor], Tensor]:
+        idx_0, idx_1 = tuple(
+            int(_idx) for _idx in np.unravel_index(idx, self.expression.shape)
+        )
+        return (
+            (
+                self.input[0][idx_0],
+                self.input[1][idx_1],
+            ),
+            self.expression[idx_0, idx_1],
+        )
+
+    def _postprocess(self, results: List[Tensor]) -> torch.Tensor:
+        return torch.concat(results).reshape(*self.expression.shape)
+
+
+class RosaObsDataset(_SingleDataset):
+    def __init__(
+        self,
+        adata: AnnData,
+        *,
+        obs_input: str,
+        expression_layer: Optional[str] = None,
+        expression_transform_config: Optional[ExpressionTransformConfig] = None,
+    ) -> None:
+        self.adata = adata
+        expression = _prepare_expression(
+            adata, expression_layer, expression_transform_config
+        )
+
+        input_transform = ToTensor()
+        raw_input = adata.obsm[obs_input]
+        input = input_transform(raw_input)
+
+        super().__init__(expression, input)
+
+    def predict(self, results: List[Tensor], prediction_layer: str='prediction') -> None:
+        self.adata.layers[prediction_layer] = super()._postprocess(results).numpy()
+
+
+class RosaVarDataset(_SingleDataset):
+    def __init__(
+        self,
+        adata: AnnData,
+        *,
+        var_input: str,
+        expression_layer: Optional[str] = None,
+        expression_transform_config: Optional[ExpressionTransformConfig] = None,
+    ) -> None:
+        self.adata = adata
+        expression = _prepare_expression(
+            adata, expression_layer, expression_transform_config
+        )
+
+        input_transform = ToTensor()
+        raw_input = adata.varm[var_input]
+        input = input_transform(raw_input)
+
+        super().__init__(expression.T, input)
+
+    def predict(self, results: List[Tensor], prediction_layer: str='prediction') -> None:
+        self.adata.layers[prediction_layer] = super()._postprocess(results).numpy().T
+
+
+class RosaJointDataset(_JointDataset):
+    def __init__(
+        self,
+        adata: AnnData,
+        *,
+        var_input: str,
+        obs_input: str,
+        expression_layer: Optional[str] = None,
+        expression_transform_config: Optional[ExpressionTransformConfig] = None,
+    ) -> None:
+        self.adata = adata
+        expression = _prepare_expression(
+            adata, expression_layer, expression_transform_config
+        )
+
+        input_transform = ToTensor()
+        raw_var_input = adata.varm[var_input]
+        raw_obs_input = adata.obsm[obs_input]
+        input = (
+            input_transform(raw_obs_input),
+            input_transform(raw_var_input),
+        )
+
+        super().__init__(expression, input)
+
+    def predict(self, results: List[Tensor], prediction_layer: str='prediction') -> None:
+        self.adata.layers[prediction_layer] = super()._postprocess(results).numpy()
+
+
+def _prepare_expression(
+    adata: AnnData,
+    expression_layer: Optional[str] = None,
+    expression_transform_config: Optional[ExpressionTransformConfig] = None,
+) -> torch.Tensor:
+    # extract expression, shape n_obs x n_var
+    if expression_layer is None:
+        raw_expression = adata.X  # type: np.ndarray
+    else:
+        raw_expression = adata.layers[expression_layer]
+
+    if expression_transform_config is None:
+        expression_transform_config = ExpressionTransformConfig()
+    expression_transform = ExpressionTransform(expression_transform_config)
+    return expression_transform(raw_expression)
+
+
+def rosa_dataset_factory(
+    adata: AnnData, data_config: DataConfig
+) -> Union[RosaObsDataset, RosaVarDataset, RosaJointDataset]:
+    if data_config.obs_input is not None and data_config.var_input is not None:
+        return RosaJointDataset(
+            adata,
+            var_input=data_config.var_input,
+            obs_input=data_config.obs_input,
+            expression_layer=data_config.expression_layer,
+            expression_transform_config=data_config.expression_transform,
+        )
+
+    if data_config.obs_input is None and data_config.var_input is not None:
+        return RosaVarDataset(
+            adata,
+            var_input=data_config.var_input,
+            expression_layer=data_config.expression_layer,
+            expression_transform_config=data_config.expression_transform,
+        )
+
+    if data_config.obs_input is not None and data_config.var_input is None:
+        return RosaObsDataset(
+            adata,
+            obs_input=data_config.obs_input,
+            expression_layer=data_config.expression_layer,
+            expression_transform_config=data_config.expression_transform,
+        )
+
+    raise ValueError("One of the var input or the obs input must not be None")

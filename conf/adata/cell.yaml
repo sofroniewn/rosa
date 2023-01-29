@@ -1,4 +1,0 @@
-embedding_type: cell
-expression_layer: null
-var_embedding: null
-obs_embedding: embedding

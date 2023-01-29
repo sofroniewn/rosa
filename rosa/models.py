@@ -11,40 +11,75 @@ from scvi.distributions import (
     ZeroInflatedNegativeBinomial,
 )
 
-from .components import BilinearHead, ConcatHead, SingleHead
+from .components import ExpressionHead
 
 
-class RosaModel(nn.Module):
+class RosaSingleModel(nn.Module):
     def __init__(
         self,
         in_dim,
         out_dim,
         model_cfg,
+        n_bins: int = 1,
     ):
         super().__init__()
-        if type(in_dim) == tuple:
-            in_dim_1, in_dim_2 = in_dim
-            if model_cfg.method == "bilinear":
-                self.model = BilinearHead(
-                    in_dim_1=in_dim_1,
-                    in_dim_2=in_dim_2,
-                    rank=model_cfg.rank,
-                    head_1=model_cfg.obs_head,
-                    head_2=model_cfg.var_head,
-                )
-            elif model_cfg.method == "concat":
-                self.model = ConcatHead(
-                    in_dim_1=in_dim_1,
-                    in_dim_2=in_dim_2,
-                    head=model_cfg.head,
-                )
-            else:
-                raise ValueError(f"Item {model_cfg.method} not recognized")
-        else:
-            self.model = SingleHead(in_dim, out_dim, head=model_cfg.head)
+        # if type(in_dim) == tuple:
+        #     in_dim_1, in_dim_2 = in_dim
+        #     if model_cfg.method == "bilinear":
+        #         self.model = BilinearHead(
+        #             in_dim_1=in_dim_1,
+        #             in_dim_2=in_dim_2,
+        #             rank=model_cfg.rank,
+        #             head_1=model_cfg.obs_head,
+        #             head_2=model_cfg.var_head,
+        #         )
+        #     elif model_cfg.method == "concat":
+        #         self.model = ConcatHead(
+        #             in_dim_1=in_dim_1,
+        #             in_dim_2=in_dim_2,
+        #             head=model_cfg.head,
+        #         )
+        #     else:
+        #         raise ValueError(f"Item {model_cfg.method} not recognized")
+        # else:
+        #     self.model = SingleHead(in_dim, out_dim, head=model_cfg.head)
+
+        embedding_dim = in_dim # from model_config.embedding_dim
+
+
+        input_projection = InputProjection(in_dim, embedding_dim) # model_config.embedding_dim
+        # Dropout ? 
+        # LayerNorm ?
+        body = nn.Identity() # Make a FeedForward Layer .....
+        # LayerNorm ?
+        # Dropout ? 
+
+        # model_config.loss is cross_entropy then figure out n_bins .....
+        head = ExpressionHead(embedding_dim, out_dim) # model_config.expression_activation
+
+        self.model = nn.Sequential(
+            input_projection,
+            body,
+            head
+        )
 
     def forward(self, x):
-        return self.model.forward(x)
+        return self.model(x)
+
+
+class InputProjection(nn.Module):
+    def __init__(self, in_dim: int, out_dim: int) -> None:
+        super(InputProjection, self).__init__()
+        self.model = nn.Linear(in_dim, out_dim)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return self.model(x)
+
+
+# class EmbeddingJoin(nn.Module)
+# SUM = A + B
+# CAT = [A, B]
+# PROD = A^T * W * B
 
 
 # class SingleSCVIDecoderEmbedding2ExpressionModel(LightningModule):

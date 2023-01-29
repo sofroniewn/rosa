@@ -1,12 +1,13 @@
 hydra:
   run:
-      dir: /home/ec2-user/enformer/outputs/${adata.embedding_type}/${now:%Y-%m-%d}/${now:%H-%M-%S}
+      dir: /Users/nsofroniew/Documents/data/rosa/outputs/${now:%Y-%m-%d}/${now:%H-%M-%S}
 paths:
-  adata: /home/ec2-user/enformer/tabula_sapiens_by_features_with_embeds_new_norm.h5ad
+  adata: /Users/nsofroniew/Documents/data/multiomics/cell_census/tabula_sapiens_by_features_with_embeds_new_norm.h5ad
   chkpt: null
 params:
   batch_size: 128
   learning_rate: 0.001
+  num_workers: 0
 defaults:
-  - adata: gene
+  - data: gene
   - model: single

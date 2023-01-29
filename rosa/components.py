@@ -1,5 +1,43 @@
+from enum import Enum, auto
+from typing import Optional
+
 import torch
 import torch.nn as nn
+
+
+class ExpressionActivations(Enum):
+    SOFTPLUS = auto()
+    SOFTMAX = auto()
+
+
+class ExpressionHead(nn.Module):
+    """
+    Go from a latent space to expression
+    """
+    def __init__(
+        self,
+        input_dim,
+        output_dim,
+        activation: Optional[ExpressionActivations] = None,
+        n_bins: int = 1,
+    ):
+        super(ExpressionHead, self).__init__()
+        if n_bins > 1 and activation is not None:
+            raise ValueError(f'An activation should not be used for classification')
+
+        self.model = nn.Sequential(nn.Linear(input_dim, output_dim * n_bins))
+
+        if activation is None:
+            pass
+        elif activation == ExpressionActivations.SOFTPLUS.name.lower():
+            self.model.append(nn.Softplus())
+        elif activation == ExpressionActivations.SOFTMAX.name.lower():
+            self.model.append(nn.Softmax(dim=-1))
+        else:
+            raise ValueError(f"Activation {activation} not recognized")
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return self.model(x)
 
 
 class BilinearHead(nn.Module):
@@ -52,8 +90,8 @@ class SingleHead(nn.Module):
         self.head = head
         self.out_dim = out_dim
         if self.head == "linear":
-            self.conv = nn.Conv2d(1, 10, (896, 1))
-            self.fc = nn.Linear(in_features=in_dim * 10, out_features=out_dim)
+            # self.conv = nn.Conv2d(1, 10, (896, 1))
+            self.fc = nn.Linear(in_features=in_dim, out_features=out_dim)
         elif self.head == "MLP":
             self.fc = MLP(in_dim=in_dim, out_dim=out_dim, dropout=0.5)
         elif self.head == "OneHot":
@@ -74,9 +112,9 @@ class SingleHead(nn.Module):
         # self.mult = nn.Parameter(torch.tensor(1.0))
 
     def forward(self, x):
-        x = x.unsqueeze(1)
-        x = self.conv(x)
-        x = x.view(x.shape[0], -1)
+        # x = x.unsqueeze(1)
+        # x = self.conv(x)
+        # x = x.view(x.shape[0], -1)
         x = self.fc(x)
         # x = self.act1(x)
         # # x = self.norm(x)

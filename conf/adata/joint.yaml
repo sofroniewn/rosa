@@ -1,4 +1,0 @@
-embedding_type: joint
-expression_layer: null
-var_embedding: embedding_pca
-obs_embedding: X_scVI

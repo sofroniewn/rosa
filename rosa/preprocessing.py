@@ -171,7 +171,8 @@ def calculate_gene_embeddings_pca(adata: ad.AnnData, n_pcs: int = 512) -> ad.Ann
 
 def add_dendrogram_and_hvgs(adata: ad.AnnData) -> ad.AnnData:
     # Add highly variable genes
-    adata.uns["log1p"]["base"] = None  # needed to deal with error?
+    if "log1p" in adata.uns:
+        adata.uns["log1p"]["base"] = None  # needed to deal with error?
     sc.pp.highly_variable_genes(adata, min_mean=0.0125, max_mean=3, min_disp=0.5)
 
     # Add dendrogram

@@ -13,17 +13,15 @@ def predict(cfg: RosaConfig, chkpt: str) -> ad.AnnData:
     # Create Data Module
     rdm = RosaDataModule(
         cfg.paths.adata,
-        expression_layer=cfg.adata.expression_layer,
-        obs_embedding=cfg.adata.obs_embedding,
-        var_embedding=cfg.adata.var_embedding,
-        batch_size=cfg.params.batch_size,
+        data_config=cfg.data,
+        param_config=cfg.params,
     )
     rdm.setup()
 
     # Load model from checkpoint
     rlm = RosaLightningModule.load_from_checkpoint(
         chkpt,
-        in_dim=rdm.len_embedding,
+        in_dim=rdm.len_input,
         out_dim=rdm.len_target,
         model_cfg=cfg.model,
         learning_rate=cfg.params.learning_rate,
@@ -32,5 +30,5 @@ def predict(cfg: RosaConfig, chkpt: str) -> ad.AnnData:
 
     trainer = Trainer()
     predictions = trainer.predict(rlm, rdm)
-    rdm.predict_dataset.postprocess(predictions)
+    rdm.predict_dataset.predict(predictions)
     return rdm.predict_dataset.adata

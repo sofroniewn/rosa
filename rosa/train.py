@@ -14,15 +14,13 @@ cs.store(name="rosa_config", node=RosaConfig)
 def train(cfg: RosaConfig) -> None:
     rdm = RosaDataModule(
         cfg.paths.adata,
-        expression_layer=cfg.adata.expression_layer,
-        obs_embedding=cfg.adata.obs_embedding,
-        var_embedding=cfg.adata.var_embedding,
-        batch_size=cfg.params.batch_size,
+        data_config=cfg.data,
+        param_config=cfg.params,
     )
     rdm.setup()
 
     rlm = RosaLightningModule(
-        in_dim=rdm.len_embedding,
+        in_dim=rdm.len_input,
         out_dim=rdm.len_target,
         model_cfg=cfg.model,
         learning_rate=cfg.params.learning_rate,
@@ -39,7 +37,7 @@ def train(cfg: RosaConfig) -> None:
         # log_every_n_steps=10_000,
         logger=TensorBoardLogger(".", "", ""),
         resume_from_checkpoint=cfg.paths.chkpt,
-        accelerator="cuda",
+        accelerator="cpu",
         devices=1,
         callbacks=[checkpoint_callback],
         gradient_clip_val=10,
