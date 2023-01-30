@@ -1,0 +1,16 @@
+dropout_prob: 0.5
+layer_norm: True
+feed_forward: null
+layer_norm_1: True
+input_embed:
+  layer_norm: True
+  dropout_prob: 0.5
+  embedding_dim: 128
+input_embed_1:
+  layer_norm: True
+  dropout_prob: 0.5
+  embedding_dim: 128
+join_embeds:
+  method: add
+defaults:
+  - expression_head: standard

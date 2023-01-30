@@ -1,7 +1,0 @@
-var_head: linear
-obs_head: linear
-method: bilinear
-rank: 16
-defaults:
-  - expression_head: standard
-  - input_embed: standard

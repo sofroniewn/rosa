@@ -68,7 +68,7 @@ class _JointDataset(Dataset):
         self.expression = expression
         self.expression_dim = 1
         self.input = input
-        self.input_dims = (
+        self.input_dim = (
             self.input[0].shape[1],
             self.input[1].shape[1],
         )

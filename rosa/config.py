@@ -64,13 +64,26 @@ class FeedForwardConfig:
     hidden_dim: int
 
 
+class JoinEmbedsMethods(Enum):
+    ADD = auto()
+    CAT = auto()
+
+
+@dataclass
+class JoinEmbedsConfig:
+    method: JoinEmbedsMethods
+
+
 @dataclass
 class ModelConfig:
     dropout_prob: float
     layer_norm: bool
     expression_head: ExpressionHeadConfig
-    input_embed: Optional[InputEmbedConfig]
     feed_forward: Optional[FeedForwardConfig]
+    input_embed: Optional[InputEmbedConfig]
+    join_embeds: Optional[JoinEmbedsConfig]
+    input_embed_1: Optional[InputEmbedConfig]
+    layer_norm_1: Optional[bool]
 
 
 @dataclass
