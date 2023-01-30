@@ -1,2 +1,6 @@
-method: single
-head: linear
+dropout_prob: 0.5
+layer_norm: True
+defaults:
+  - expression_head: standard
+  - feed_forward: standard
+  - input_embed: standard

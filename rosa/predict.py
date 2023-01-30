@@ -1,9 +1,10 @@
-from pytorch_lightning import Trainer
 from glob import glob
+
 import anndata as ad
 from hydra.core.config_store import ConfigStore
-from rosa import RosaDataModule, RosaLightningModule, RosaConfig
+from pytorch_lightning import Trainer
 
+from rosa import RosaConfig, RosaDataModule, RosaLightningModule
 
 cs = ConfigStore.instance()
 cs.store(name="rosa_config", node=RosaConfig)
@@ -23,7 +24,7 @@ def predict(cfg: RosaConfig, chkpt: str) -> ad.AnnData:
         chkpt,
         in_dim=rdm.len_input,
         out_dim=rdm.len_target,
-        model_cfg=cfg.model,
+        model_config=cfg.model,
         learning_rate=cfg.params.learning_rate,
     )
     print(rlm)

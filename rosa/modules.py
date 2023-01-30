@@ -1,4 +1,4 @@
-from typing import Any, List
+from typing import Any, List, Union
 
 import torch
 import torch.nn as nn
@@ -6,7 +6,7 @@ import torch.optim as optim
 import torchmetrics.functional as F
 from pytorch_lightning import LightningModule
 
-from .models import RosaModel
+from .models import RosaJointModel, RosaSingleModel
 
 
 class RosaLightningModule(LightningModule):
@@ -14,14 +14,18 @@ class RosaLightningModule(LightningModule):
         self,
         in_dim,
         out_dim,
-        model_cfg,
+        model_config,
         learning_rate,
     ):
         super().__init__()
+        if isinstance(in_dim, tuple):
+            RosaModel = RosaJointModel  # type: Union[RosaSingleModel, RosaJointModel]
+        else:
+            RosaModel = RosaSingleModel
         self.model = RosaModel(
             in_dim=in_dim,
             out_dim=out_dim,
-            model_cfg=model_cfg,
+            config=model_config,
         )
         self.learning_rate = learning_rate
         self.criterion = F.mean_squared_error

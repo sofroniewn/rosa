@@ -1,2 +1,5 @@
 method: concat
 head: linear
+defaults:
+  - expression_head: standard
+  - input_embed: standard

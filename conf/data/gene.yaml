@@ -1,5 +1,4 @@
-expression_layer: counts
+expression_layer: null
 var_input: embedding
 obs_input: null
-defaults:
-  - expression_transform: standard
+expression_transform: null

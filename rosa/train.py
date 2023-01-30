@@ -1,11 +1,10 @@
 import hydra
+from hydra.core.config_store import ConfigStore
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.loggers import TensorBoardLogger
-from hydra.core.config_store import ConfigStore
 
-from rosa import RosaDataModule, RosaLightningModule, RosaConfig
-
+from rosa import RosaConfig, RosaDataModule, RosaLightningModule
 
 cs = ConfigStore.instance()
 cs.store(name="rosa_config", node=RosaConfig)
@@ -22,7 +21,7 @@ def train(cfg: RosaConfig) -> None:
     rlm = RosaLightningModule(
         in_dim=rdm.len_input,
         out_dim=rdm.len_target,
-        model_cfg=cfg.model,
+        model_config=cfg.model,
         learning_rate=cfg.params.learning_rate,
     )
     print(rlm)

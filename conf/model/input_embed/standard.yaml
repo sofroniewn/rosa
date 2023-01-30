@@ -1,0 +1,3 @@
+layer_norm: True
+dropout_prob: 0.5
+embedding_dim: 512

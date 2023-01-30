@@ -1,0 +1,6 @@
+dropout_prob: 0.5
+layer_norm: True
+feed_forward: null
+input_embed: null
+defaults:
+  - expression_head: standard

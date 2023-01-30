@@ -1,9 +1,10 @@
 from dataclasses import dataclass
-from typing import Optional, List
-import torch.nn.functional as F
-import torch.nn as nn
-import torch
+from typing import List, Optional
+
 import numpy as np
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
 
 from .config import ExpressionTransformConfig
 

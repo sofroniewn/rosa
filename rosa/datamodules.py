@@ -1,6 +1,5 @@
-from typing import Optional
 from dataclasses import dataclass
-
+from typing import Optional
 
 import numpy as np
 from anndata import read_h5ad  # type: ignore
@@ -8,12 +7,8 @@ from pytorch_lightning import LightningDataModule
 from torch.utils.data import DataLoader
 
 from .config import DataConfig, ParamConfig
-from .datasets import (
-    rosa_dataset_factory,
-    RosaJointDataset,
-    RosaObsDataset,
-    RosaVarDataset,
-)
+from .datasets import (RosaJointDataset, RosaObsDataset, RosaVarDataset,
+                       rosa_dataset_factory)
 
 
 class RosaDataModule(LightningDataModule):

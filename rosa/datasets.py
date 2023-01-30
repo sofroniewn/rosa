@@ -1,6 +1,6 @@
 import warnings
-from typing import List, Optional, Tuple, Union
 from dataclasses import dataclass
+from typing import List, Optional, Tuple, Union
 
 import numpy as np
 import torch
@@ -8,10 +8,8 @@ from anndata import AnnData  # type: ignore
 from torch import Tensor
 from torch.utils.data import Dataset
 
-from .preprocessing import reconstruct_expression
+from .config import DataConfig, ExpressionTransformConfig
 from .transforms import ExpressionTransform, ToTensor
-from .config import ExpressionTransformConfig, DataConfig
-
 
 warnings.simplefilter(action="ignore", category=FutureWarning)
 
@@ -114,7 +112,9 @@ class RosaObsDataset(_SingleDataset):
 
         super().__init__(expression, input)
 
-    def predict(self, results: List[Tensor], prediction_layer: str='prediction') -> None:
+    def predict(
+        self, results: List[Tensor], prediction_layer: str = "prediction"
+    ) -> None:
         self.adata.layers[prediction_layer] = super()._postprocess(results).numpy()
 
 
@@ -138,7 +138,9 @@ class RosaVarDataset(_SingleDataset):
 
         super().__init__(expression.T, input)
 
-    def predict(self, results: List[Tensor], prediction_layer: str='prediction') -> None:
+    def predict(
+        self, results: List[Tensor], prediction_layer: str = "prediction"
+    ) -> None:
         self.adata.layers[prediction_layer] = super()._postprocess(results).numpy().T
 
 
@@ -167,7 +169,9 @@ class RosaJointDataset(_JointDataset):
 
         super().__init__(expression, input)
 
-    def predict(self, results: List[Tensor], prediction_layer: str='prediction') -> None:
+    def predict(
+        self, results: List[Tensor], prediction_layer: str = "prediction"
+    ) -> None:
         self.adata.layers[prediction_layer] = super()._postprocess(results).numpy()
 
 
