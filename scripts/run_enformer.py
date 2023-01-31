@@ -15,6 +15,7 @@ class MyGenomeIntervalDataset(GenomeIntervalDataset):
 
 if __name__ == "__main__":
     import torch
+    import zarr
     from enformer_pytorch import Enformer
     from torch.utils.data import DataLoader
     from tqdm import tqdm
@@ -31,15 +32,15 @@ if __name__ == "__main__":
 
     FASTA_PT = BASE_PT + "/Homo_sapiens.GRCh38.dna.toplevel.fa"
     GENE_INTERVALS_PT = BASE_PT + "/Homo_sapiens.GRCh38.genes.bed"
-    EMBEDDING_PT = BASE_PT + "/Homo_sapiens.GRCh38.genes.enformer_embeddings"
-    EMBEDDING_PT_TSS = BASE_PT + "/Homo_sapiens.GRCh38.genes.enformer_embeddings_tss"
+    EMBEDDING_PT = BASE_PT + "/Homo_sapiens.GRCh38.genes.enformer_embeddings.zarr"
+    EMBEDDING_PT_TSS = BASE_PT + "/Homo_sapiens.GRCh38.genes.enformer_embeddings_tss.zarr"
     MODEL_PT = "EleutherAI/enformer-official-rough"
 
     print("Converting fasta file")
     pyfaidx.Faidx(FASTA_PT)
     print("Fasta file done")
 
-    model = Enformer.from_pretrained(MODEL_PT, output_heads=dict(human=5313))
+    model = Enformer.from_pretrained(MODEL_PT, output_heads=dict(), use_checkpointing = False)
     model.to(DEVICE)
 
     ds = MyGenomeIntervalDataset(
@@ -58,17 +59,34 @@ if __name__ == "__main__":
 
     paths = (Path(EMBEDDING_PT), Path(EMBEDDING_PT_TSS))
  
+
+    z_embedding_full = zarr.open(
+        EMBEDDING_PT,
+        mode="w",
+        shape=(NUM_GENES, SEQ_EMBED_DIM, EMBED_DIM),
+        chunks=(1, SEQ_EMBED_DIM, EMBED_DIM),
+        dtype='float32',
+    )
+
+    z_embedding_tss = zarr.open(
+        EMBEDDING_PT_TSS,
+        mode="w",
+        shape=(NUM_GENES, EMBED_DIM),
+        chunks=(1, EMBED_DIM),
+        dtype='float32',
+    )
+
     index = 0
     for labels, batch in tqdm(dl):
         # calculate embedding
         with torch.no_grad():
             output, embeddings = model(batch.to(DEVICE), return_embeddings=True)
-            embeddings = embeddings.detach().cpu()
+            embeddings = embeddings.detach().cpu().numpy()
 
-        # Save data for each gene sequence individually
-        for embed, label in zip(embeddings, labels):
-            for path, data in zip(paths, (embed, embed[TSS])):
-                output_file = path / f"{label}.pt"
-                output_file.parent.mkdir(parents=True, exist_ok=True)
-                result = {"label": label, "embedding": data}
-                torch.save(result, output_file)
+        tss_embedding = embeddings[:, TSS]
+
+        # save full and reduced embeddings
+        batch_size = len(embeddings)
+        z_embedding_full[index : index + batch_size] = embeddings
+        z_embedding_tss[index : index + batch_size] = tss_embedding
+        index += batch_size
