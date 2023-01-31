@@ -5,9 +5,9 @@ paths:
   adata: /Users/nsofroniew/Documents/data/multiomics/cell_census/tabula_sapiens_by_features_with_embeds_new_norm.h5ad
   chkpt: null
 params:
-  batch_size: 16384
+  batch_size: 4096
   learning_rate: 0.001
   num_workers: 0
 defaults:
-  - data: joint
-  - model: joint
+  - data: gene
+  - model: single-expression-head-only
