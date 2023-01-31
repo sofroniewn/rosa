@@ -67,11 +67,14 @@ class FeedForwardConfig:
 class JoinEmbedsMethods(Enum):
     ADD = auto()
     CAT = auto()
+    BILINEAR = auto()
+    ATTENTION = auto()
 
 
 @dataclass
 class JoinEmbedsConfig:
     method: JoinEmbedsMethods
+    out_dim: Optional[int]
 
 
 @dataclass

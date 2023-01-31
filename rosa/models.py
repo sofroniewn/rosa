@@ -102,7 +102,7 @@ class RosaJointModel(nn.Module):
                 in_dim[1], embedding_dim_1, config=config.input_embed_1
             )
 
-        input_embeds = (
+        input_embeds = nn.ModuleList([
             nn.Sequential(
                 OrderedDict(
                     [
@@ -119,7 +119,7 @@ class RosaJointModel(nn.Module):
                     ]
                 )
             ),
-        )
+        ])
         dual_embed = ParallelEmbed(input_embeds)
         if config.join_embeds is None:
             raise ValueError(f'A join embedding method must be specified for a joint model')

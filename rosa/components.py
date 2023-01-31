@@ -99,7 +99,7 @@ class FeedForward(nn.Module):
 
 
 class ParallelEmbed(nn.Module):
-    def __init__(self, models: Tuple[nn.Module, ...]) -> None:
+    def __init__(self, models: nn.ModuleList) -> None:
         super(ParallelEmbed, self).__init__()
         self.models = models
 
@@ -127,11 +127,40 @@ class CatEmbeds(nn.Module):
         return torch.cat(x, dim=-1)
 
 
-def join_embeds_factory(in_dim: Tuple[int, int], config: JoinEmbedsConfig) -> Union[AddEmbeds, CatEmbeds]:
+class BilinearEmbeds(nn.Module):
+    def __init__(self, in_dim: Tuple[int, int], out_dim) -> None:
+        super(BilinearEmbeds, self).__init__()
+        self.model = nn.Bilinear(in_dim[0], in_dim[1], out_dim)
+        self.out_dim = out_dim
+
+    def forward(self, x: Tuple[torch.Tensor, torch.Tensor]) -> torch.Tensor:
+        return self.model(*x)
+
+
+class AttentionEmbeds(nn.Module):
+    def __init__(self, in_dim: Tuple[int, int], out_dim) -> None:
+        super(AttentionEmbeds, self).__init__()
+        if in_dim[0] != in_dim[1]:
+            raise ValueError(f'Embeddings must have same dimensions for attention method, got {in_dim}')
+
+        self.value = nn.Parameter(torch.randn(out_dim))
+        self.activation = nn.GELU()
+        self.out_dim = out_dim
+
+    def forward(self, x: Tuple[torch.Tensor, torch.Tensor]) -> torch.Tensor:
+        atten = self.activation(torch.einsum('...i, ...i ->...', *x))
+        return torch.einsum('..., i -> ...i', atten, self.value)
+
+
+def join_embeds_factory(in_dim: Tuple[int, int], config: JoinEmbedsConfig) -> Union[AddEmbeds, AttentionEmbeds, BilinearEmbeds, CatEmbeds]:
     if config.method == JoinEmbedsMethods.ADD.name.lower():
         return AddEmbeds(in_dim)
     if config.method == JoinEmbedsMethods.CAT.name.lower():
         return CatEmbeds(in_dim)
+    if config.method == JoinEmbedsMethods.BILINEAR.name.lower():
+        return BilinearEmbeds(in_dim, config.out_dim)
+    if config.method == JoinEmbedsMethods.ATTENTION.name.lower():
+        return AttentionEmbeds(in_dim, config.out_dim)
     raise ValueError(f"Activation {config.method} not recognized")
 
 
@@ -222,24 +251,6 @@ def join_embeds_factory(in_dim: Tuple[int, int], config: JoinEmbedsConfig) -> Un
 #         # x = x * self.mult
 #         # x = torch.log1p(x)
 #         return x
-
-
-# class MLP(nn.Module):
-#     def __init__(self, dropout=0.0, in_dim=512, out_dim=512, hidden_dim=128):
-#         super(MLP, self).__init__()
-#         self.network = nn.Sequential(
-#             nn.Linear(in_features=in_dim, out_features=hidden_dim, bias=True),
-#             nn.Softplus(),
-#             nn.Dropout(dropout),
-#             nn.Linear(in_features=hidden_dim, out_features=hidden_dim, bias=True),
-#             nn.Softplus(),
-#             nn.Dropout(dropout),
-#             nn.Linear(in_features=hidden_dim, out_features=out_dim, bias=True),
-#         )
-
-#     def forward(self, x):
-#         return self.network(x)
-
 
 # class SingleSCVIDecoderEmbedding2ExpressionModel(LightningModule):
 #     def __init__(
