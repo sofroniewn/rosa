@@ -7,14 +7,16 @@ from pytorch_lightning import LightningDataModule
 from torch.utils.data import DataLoader
 
 from .config import DataModuleConfig
-from .datasets import (RosaJointDataset, RosaObsDataset, RosaVarDataset,
-                       rosa_dataset_factory)
+from .datasets import (
+    RosaJointDataset,
+    RosaObsDataset,
+    RosaVarDataset,
+    rosa_dataset_factory,
+)
 
 
 class RosaDataModule(LightningDataModule):
-    def __init__(
-        self, adata_path: str, config: DataModuleConfig
-    ):
+    def __init__(self, adata_path: str, config: DataModuleConfig):
         super().__init__()
 
         self.adata_path = adata_path

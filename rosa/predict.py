@@ -1,11 +1,9 @@
 import anndata as ad
-from hydra.core.config_store import ConfigStore
 from pytorch_lightning import Trainer
 
-from rosa import RosaConfig, RosaDataModule, RosaLightningModule
-
-cs = ConfigStore.instance()
-cs.store(name="rosa_config", node=RosaConfig)
+from .config import RosaConfig
+from .datamodules import RosaDataModule
+from .modules import RosaLightningModule
 
 
 def predict(config: RosaConfig, chkpt: str) -> ad.AnnData:

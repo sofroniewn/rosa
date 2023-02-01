@@ -1,7 +1,6 @@
 import hydra
-from rosa.train import train
 from hydra.core.config_store import ConfigStore
-from rosa import RosaConfig
+from rosa import RosaConfig, train
 
 
 cs = ConfigStore.instance()

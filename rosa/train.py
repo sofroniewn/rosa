@@ -1,13 +1,10 @@
-import hydra
-from hydra.core.config_store import ConfigStore
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.loggers import TensorBoardLogger
 
-from rosa import RosaConfig, RosaDataModule, RosaLightningModule
-
-cs = ConfigStore.instance()
-cs.store(name="rosa_config", node=RosaConfig)
+from .config import RosaConfig
+from .datamodules import RosaDataModule
+from .modules import RosaLightningModule
 
 
 def train(config: RosaConfig) -> None:

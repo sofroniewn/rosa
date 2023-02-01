@@ -3,11 +3,17 @@ from typing import Union
 
 import torch
 import torch.nn as nn
-from scvi.distributions import (NegativeBinomial, NegativeBinomialMixture,
-                                ZeroInflatedNegativeBinomial)
+from scvi.distributions import (
+    NegativeBinomial,
+    NegativeBinomialMixture,
+    ZeroInflatedNegativeBinomial,
+)
 
-from ..config import (ExpressionHeadActivations, ExpressionHeadConfig,
-                      ExpressionHeadLikelihood)
+from ..config import (
+    ExpressionHeadActivations,
+    ExpressionHeadConfig,
+    ExpressionHeadLikelihood,
+)
 
 
 class ProjectionExpressionHead(nn.Module):
@@ -177,7 +183,7 @@ class NegativeBinomialMixtureExpressionHead(nn.Module):
             theta2=px_r_2,
             mixture_logits=px_mixture,
         )
-        nbm.theta2 = px_r_2 # hack to fix scvi-tools bug
+        nbm.theta2 = px_r_2  # hack to fix scvi-tools bug
         return nbm
 
     def sample(self, x: torch.distributions.Distribution) -> torch.Tensor:

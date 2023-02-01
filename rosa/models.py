@@ -4,8 +4,13 @@ from typing import Callable, Tuple, Union
 import torch
 import torch.nn as nn
 
-from .components import (FeedForward, InputEmbed, ParallelEmbed,
-                         expression_head_factory, join_embeds_factory)
+from .components import (
+    FeedForward,
+    InputEmbed,
+    ParallelEmbed,
+    expression_head_factory,
+    join_embeds_factory,
+)
 from .config import ModelConfig
 
 

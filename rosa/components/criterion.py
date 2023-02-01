@@ -1,6 +1,7 @@
 from typing import Callable
-import torchmetrics.functional as F
+
 import torch
+import torchmetrics.functional as F
 
 from ..config import CriterionConfig, LossFunctions
 
@@ -19,5 +20,4 @@ def criterion_factory(config: CriterionConfig) -> Callable:
     if config.loss_function == LossFunctions.LOGPROB.name.lower():
         return mean_log_prob_criterion
 
-    raise ValueError(f'Loss function {config.loss_function} not recognized')
-    
+    raise ValueError(f"Loss function {config.loss_function} not recognized")

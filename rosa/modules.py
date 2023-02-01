@@ -1,13 +1,11 @@
 from typing import Union
 
-import torch
 import torch.optim as optim
-import torchmetrics.functional as F
 from pytorch_lightning import LightningModule
 
-from .models import RosaJointModel, RosaSingleModel
 from .components import criterion_factory
-from. config import ModuleConfig
+from .config import ModuleConfig
+from .models import RosaJointModel, RosaSingleModel
 
 
 class RosaLightningModule(LightningModule):
