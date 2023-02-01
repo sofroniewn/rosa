@@ -1,4 +1,5 @@
 from collections import OrderedDict
+from typing import Union
 
 import torch
 import torch.nn as nn
@@ -6,29 +7,35 @@ import torch.nn as nn
 from ..config import (
     ExpressionHeadActivations,
     ExpressionHeadConfig,
+    ExpressionHeadLikelihood,
 )
 
-# from scvi.distributions import (NegativeBinomial, NegativeBinomialMixture,
-#                                 ZeroInflatedNegativeBinomial)
+from scvi.distributions import (NegativeBinomial, NegativeBinomialMixture,
+                                ZeroInflatedNegativeBinomial)
 
 
-class ExpressionHead(nn.Module):
+class ProjectionExpressionHead(nn.Module):
     """
     Go from a latent space to expression
     """
 
     def __init__(
         self,
-        input_dim,
-        output_dim,
+        in_dim,
+        out_dim,
         config: ExpressionHeadConfig,
         n_bins: int = 1,
     ):
-        super(ExpressionHead, self).__init__()
+        super(ProjectionExpressionHead, self).__init__()
         if n_bins > 1 and config.activation is not None:
             raise ValueError(f"An activation should not be used for classification")
 
-        projection_nn = nn.Linear(input_dim, output_dim * n_bins)
+        if config.projection:
+            projection_nn = nn.Linear(in_dim, out_dim * n_bins) # type: nn.Module
+        else:
+            if in_dim != out_dim * n_bins:
+                raise ValueError(f'If no projection is used input dim {in_dim} must match output dim {out_dim * n_bins}')
+            projection_nn = nn.Identity()
 
         if config.activation is None:
             activation_nn = nn.Identity()  # type: nn.Module
@@ -52,101 +59,136 @@ class ExpressionHead(nn.Module):
         return self.model(x).squeeze(-1)
 
 
-# class ExpressionModel(LightningModule):
-#     def __init__(
-#         self,
-#         in_dim,
-#         out_dim,
-#         library_size=1,
-#         gene_likelihood="nbm",
-#     ):
-#         super().__init__()
-#         self.library_size = torch.scalar_tensor(library_size)
-#         self.gene_likelihood = gene_likelihood
-#         self.model = nn.ModuleDict(
-#             {
-#                 "px_scale_decoder": nn.Sequential(
-#                     nn.Linear(in_features=in_dim, out_features=out_dim), nn.Softplus()
-#                 ),
-#                 "px_r_decoder": nn.Linear(in_features=in_dim, out_features=out_dim),
-#                 "px_scale2_decoder": nn.Sequential(
-#                     nn.Linear(in_features=in_dim, out_features=out_dim), nn.Softplus()
-#                 ),
-#                 "px_r2_decoder": nn.Linear(in_features=in_dim, out_features=out_dim),
-#                 "px_dropout_decoder": nn.Linear(
-#                     in_features=in_dim, out_features=out_dim
-#                 ),
-#             }
-#         )
+class ZeroInflatedNegativeBinomialExpressionHead(nn.Module):
+    def __init__(
+        self,
+        in_dim,
+        out_dim,
+        config: ExpressionHeadConfig,
+    ):
+        super().__init__()
+        if config.library_size is None:
+            raise ValueError(f'Expression head library size must be provided for likelihood model')
+        self.library_size = torch.scalar_tensor(config.library_size)
 
-#     def forward(self, x):
-#         px_scale = self.model["px_scale_decoder"].forward(x)
-#         px_rate = px_scale * self.library_size / 2
+        self.model = nn.ModuleDict(
+            {
+                "px_scale": nn.Sequential(
+                    nn.Linear(in_dim, out_dim), nn.Softplus()
+                ),
+                "px_r": nn.Linear(in_dim, out_dim),
+                "px_dropout": nn.Linear(
+                    in_dim, out_dim
+                ),
+            }
+        )
 
-#         px_r = self.model["px_r_decoder"].forward(x)
-#         px_r = torch.exp(px_r)
+    def forward(self, x: torch.Tensor) -> torch.distributions.Distribution:
+        px_scale = self.model["px_scale"].forward(x)
+        px_rate = px_scale * self.library_size
+        px_r = torch.exp(self.model["px_r"].forward(x))
+        px_dropout = self.model["px_dropout"].forward(x)
 
-#         px_scale2 = self.model["px_scale2_decoder"].forward(x)
-#         px_rate2 = px_scale2 * self.library_size / 2
+        return ZeroInflatedNegativeBinomial(
+            mu=px_rate,
+            theta=px_r,
+            zi_logits=px_dropout,
+            scale=px_scale,
+        )
+        
 
-#         px_r2 = self.model["px_r2_decoder"].forward(x)
-#         px_r2 = torch.exp(px_r2)
+class NegativeBinomialExpressionHead(nn.Module):
+    def __init__(
+        self,
+        in_dim,
+        out_dim,
+        config: ExpressionHeadConfig,
+    ):
+        super().__init__()
+        if config.library_size is None:
+            raise ValueError(f'Expression head library size must be provided for likelihood model')
+        self.library_size = torch.scalar_tensor(config.library_size)
 
-#         px_dropout = self.model["px_dropout_decoder"].forward(x)
+        self.model = nn.ModuleDict(
+            {
+                "px_scale": nn.Sequential(
+                    nn.Linear(in_dim, out_dim), nn.Softplus()
+                ),
+                "px_r": nn.Linear(in_dim, out_dim),
+            }
+        )
 
-#         if self.gene_likelihood == "zinb":
-#             px = ZeroInflatedNegativeBinomial(
-#                 mu=px_rate,
-#                 theta=px_r,
-#                 zi_logits=px_dropout,
-#                 scale=px_scale,
-#             )
-#         elif self.gene_likelihood == "nb":
-#             px = NegativeBinomial(mu=px_rate, theta=px_r, scale=px_scale)
-#         elif self.gene_likelihood == "nbm":
-#             px = NegativeBinomialMixture(
-#                 mu1=px_rate,
-#                 mu2=px_rate2,
-#                 theta1=px_r,
-#                 theta2=px_r2,
-#                 mixture_logits=px_dropout,
-#             )
-#             px.theta2 = px_r2
-#         # elif self.gene_likelihood == "poisson":
-#         #     px = Poisson(px_rate, scale=px_scale)
-#         else:
-#             raise ValueError(f"Gene-likelihood {self.gene_likelihood} not recognized")
-#         return px
+    def forward(self, x: torch.Tensor) -> torch.distributions.Distribution:
+        px_scale = self.model["px_scale"].forward(x)
+        px_rate = px_scale * self.library_size
+        px_r = torch.exp(self.model["px_r"].forward(x))
 
-#     def reconstruction_loss(self, y_hat, y):
-#         # # Undo log1p
-#         # y = torch.expm1(y)
-#         return F.mean_squared_error(y_hat.mean, y)  # -y_hat.log_prob(y).sum(-1) # +
+        return NegativeBinomial(
+            mu=px_rate,
+            theta=px_r,
+            scale=px_scale,
+        )
 
-#     def sample(self, y_hat):
-#         y_hat = y_hat.mean
-#         # y_hat = y_hat.scale * self.library_size
-#         # y_hat = torch.log1p(y_hat)
-#         return y_hat
 
-#     def training_step(self, batch, batch_idx):
-#         x, y = batch
-#         y_hat = self(x)
-#         loss = self.reconstruction_loss(y_hat, y).mean()
-#         self.log("train_loss", loss, on_epoch=True, prog_bar=True, logger=True)
-#         return loss
 
-#     def validation_step(self, batch, batch_idx):
-#         x, y = batch
-#         y_hat = self(x)
-#         loss = self.reconstruction_loss(y_hat, y).mean()
-#         self.log("val_loss", loss, on_epoch=True, prog_bar=True, logger=True)
-#         return loss
+class NegativeBinomialMixtureExpressionHead(nn.Module):
+    def __init__(
+        self,
+        in_dim,
+        out_dim,
+        config: ExpressionHeadConfig,
+    ):
+        super().__init__()
+        if config.library_size is None:
+            raise ValueError(f'Expression head library size must be provided for likelihood model')
+        self.library_size = torch.scalar_tensor(config.library_size)
 
-#     def predict_step(self, batch, batch_idx):
-#         x, _ = batch
-#         y_hat = self(x)
-#         return self.sample(y_hat)
+        self.model = nn.ModuleDict(
+            {
+                "px_scale_1": nn.Sequential(
+                    nn.Linear(in_dim, out_dim), nn.Softplus()
+                ),
+                "px_r_1": nn.Linear(in_dim, out_dim),
+                "px_scale_2": nn.Sequential(
+                    nn.Linear(in_dim, out_dim), nn.Softplus()
+                ),
+                "px_r_2": nn.Linear(in_dim, out_dim),
+                "px_mixture": nn.Linear(
+                    in_dim, out_dim
+                ),
+            }
+        )
 
-#     def configure_optimizers(self):
-#         return optim.SGD(self.model.parameters(), lr=0.001, momentum=0.9)
+    def forward(self, x: torch.Tensor) -> torch.distributions.Distribution:
+        px_scale_1 = self.model["px_scale_1"].forward(x)
+        px_rate_1 = px_scale_1 * self.library_size
+        px_r_1 = torch.exp(self.model["px_r_1"].forward(x))
+
+        px_scale_2 = self.model["px_scale_2"].forward(x)
+        px_rate_2 = px_scale_2 * self.library_size
+        px_r_2 = torch.exp(self.model["px_r_2"].forward(x))
+
+        px_mixture = self.model["px_mixture"].forward(x)
+
+        return NegativeBinomialMixture(
+            mu1=px_rate_1,
+            mu2=px_rate_2,
+            theta1=px_r_1,
+            theta2=px_r_2,
+            mixture_logits=px_mixture,
+        )
+
+
+ExpressionHead = Union[ProjectionExpressionHead, NegativeBinomialExpressionHead, ZeroInflatedNegativeBinomialExpressionHead, NegativeBinomialMixtureExpressionHead]
+
+
+def expression_head_factory(in_dim:int, out_dim:int, config:ExpressionHeadConfig) -> ExpressionHead:
+    if config.likelihood is None:
+        return ProjectionExpressionHead(in_dim, out_dim, config)
+    if config.likelihood == ExpressionHeadLikelihood.NB.name.lower():
+        return NegativeBinomialExpressionHead(in_dim, out_dim, config)
+    if config.likelihood == ExpressionHeadLikelihood.ZINB.name.lower():
+        return ZeroInflatedNegativeBinomialExpressionHead(in_dim, out_dim, config)
+    if config.likelihood == ExpressionHeadLikelihood.NBM.name.lower():
+        return NegativeBinomialMixtureExpressionHead(in_dim, out_dim, config)
+    raise ValueError(f'Unrecongnized expression head likelihood {config.likelihood}')

@@ -46,9 +46,18 @@ class ExpressionHeadActivations(Enum):
     SOFTMAX = auto()
 
 
+class ExpressionHeadLikelihood(Enum):
+    ZINB = auto()
+    NB = auto()
+    NBM = auto()
+
+
 @dataclass
 class ExpressionHeadConfig:
-    activation: Optional[ExpressionHeadActivations] = None
+    projection: Optional[bool]
+    activation: Optional[ExpressionHeadActivations]
+    library_size: Optional[int]
+    likelihood: Optional[ExpressionHeadLikelihood]
 
 
 @dataclass

@@ -1,10 +1,10 @@
 from collections import OrderedDict
-from typing import Tuple
+from typing import Callable, Tuple, Union
 
 import torch
 import torch.nn as nn
 
-from .components import ExpressionHead, FeedForward, InputEmbed, ParallelEmbed, join_embeds_factory
+from .components import FeedForward, InputEmbed, ParallelEmbed, expression_head_factory, join_embeds_factory
 from .config import ModelConfig
 
 
@@ -40,7 +40,7 @@ class RosaSingleModel(nn.Module):
             )
 
         # model_config.loss is cross_entropy then figure out n_bins .....
-        head = ExpressionHead(
+        head = expression_head_factory(
             embedding_dim,
             out_dim,
             config=config.expression_head,
@@ -58,7 +58,7 @@ class RosaSingleModel(nn.Module):
             )
         )
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+    def forward(self, x: torch.Tensor) -> Union[torch.Tensor, torch.distributions.Distribution]:
         return self.main(x)
 
 
@@ -135,7 +135,7 @@ class RosaJointModel(nn.Module):
             )
 
         # model_config.loss is cross_entropy then figure out n_bins .....
-        head = ExpressionHead(
+        head = expression_head_factory(
             embedding_dim,
             out_dim,
             config=config.expression_head,
@@ -153,5 +153,5 @@ class RosaJointModel(nn.Module):
             )
         )
 
-    def forward(self, x: Tuple[torch.Tensor, ...]) -> torch.Tensor:
+    def forward(self, x: Tuple[torch.Tensor, ...]) -> Union[torch.Tensor, torch.distributions.Distribution]:
         return self.main(x)

@@ -1,4 +1,3 @@
-from collections import OrderedDict
 from typing import Tuple, Union
 
 import torch
@@ -64,7 +63,10 @@ class AttentionEmbeds(nn.Module):
         return torch.einsum('..., i -> ...i', atten, self.value)
 
 
-def join_embeds_factory(in_dim: Tuple[int, int], config: JoinEmbedsConfig) -> Union[AddEmbeds, AttentionEmbeds, BilinearEmbeds, CatEmbeds]:
+JoinEmbeds = Union[AddEmbeds, AttentionEmbeds, BilinearEmbeds, CatEmbeds]
+
+
+def join_embeds_factory(in_dim: Tuple[int, int], config: JoinEmbedsConfig) -> JoinEmbeds:
     if config.method == JoinEmbedsMethods.ADD.name.lower():
         return AddEmbeds(in_dim)
     if config.method == JoinEmbedsMethods.CAT.name.lower():

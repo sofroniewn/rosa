@@ -1,12 +1,15 @@
-from typing import Any, List, Union
+from typing import Union
 
 import torch
-import torch.nn as nn
 import torch.optim as optim
 import torchmetrics.functional as F
 from pytorch_lightning import LightningModule
 
 from .models import RosaJointModel, RosaSingleModel
+
+
+def mean_log_prob_criterion(output: torch.distributions.Distribution, target: torch.Tensor) -> torch.Tensor:
+    return -output.log_prob(target).sum(-1).mean()
 
 
 class RosaLightningModule(LightningModule):
@@ -28,8 +31,7 @@ class RosaLightningModule(LightningModule):
             config=model_config,
         )
         self.learning_rate = learning_rate
-        self.criterion = F.mean_squared_error
-        # self.criterion = nn.CrossEntropyLoss(reduction='mean')
+        self.criterion = None
 
     def forward(self, x):
         return self.model.forward(x)
@@ -37,21 +39,28 @@ class RosaLightningModule(LightningModule):
     def training_step(self, batch, _):
         x, y = batch
         y_hat = self(x)
-        loss = self.criterion(y_hat, y)
+        if isinstance(y_hat, torch.distributions.Distribution) and self.criterion is None:
+            loss = mean_log_prob_criterion(y_hat, y)
+        else:
+            loss = self.model.loss(y_hat, y)
         self.log("train_loss", loss, on_epoch=True, prog_bar=True, logger=True)
         return loss
 
     def validation_step(self, batch, _):
         x, y = batch
         y_hat = self(x)
-        loss = self.criterion(y_hat, y)
+        if isinstance(y_hat, torch.distributions.Distribution) and self.criterion is None:
+            loss = mean_log_prob_criterion(y_hat, y)
+        else:
+            loss = self.model.loss(y_hat, y)
         self.log("val_loss", loss, on_epoch=True, prog_bar=True, logger=True)
         return loss
 
     def predict_step(self, batch, _):
         x, _ = batch
         y_hat = self(x)
-        # _, y_hat = torch.max(y_hat, dim=1)
+        if isinstance(y_hat, torch.distributions.Distribution):
+            return y_hat.mean
         return y_hat
 
     def configure_optimizers(self):
