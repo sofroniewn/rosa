@@ -21,13 +21,6 @@ class ExpressionTransformConfig:
 
 
 @dataclass
-class ParamConfig:
-    batch_size: int
-    learning_rate: float
-    num_workers: Optional[int] = 0
-
-
-@dataclass
 class DataConfig:
     expression_layer: Optional[
         str
@@ -39,6 +32,13 @@ class DataConfig:
 
 #     n_obs_item: Optional[int] # If null return all obs, otherwise item will contain requested number of obs
 #     n_var_item: Optional[int] # If null return all var, otherwise item will contain requested number of var
+
+
+@dataclass
+class DataModuleConfig:
+    data: DataConfig
+    batch_size: int
+    num_workers: Optional[int] = 0
 
 
 class ExpressionHeadActivations(Enum):
@@ -86,6 +86,17 @@ class JoinEmbedsConfig:
     out_dim: Optional[int]
 
 
+class LossFunctions(Enum):
+    MSE = auto()
+    MAE = auto()
+    LOGPROB = auto()
+
+
+@dataclass
+class CriterionConfig:
+    loss_function: LossFunctions
+
+
 @dataclass
 class ModelConfig:
     dropout_prob: float
@@ -99,8 +110,14 @@ class ModelConfig:
 
 
 @dataclass
+class ModuleConfig:
+    model: ModelConfig
+    criterion: CriterionConfig
+    learning_rate: float
+
+
+@dataclass
 class RosaConfig:
     paths: PathConfig
-    data: DataConfig
-    params: ParamConfig
-    model: ModelConfig
+    data_module: DataModuleConfig
+    module: ModuleConfig

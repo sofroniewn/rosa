@@ -10,19 +10,17 @@ cs = ConfigStore.instance()
 cs.store(name="rosa_config", node=RosaConfig)
 
 
-def train(cfg: RosaConfig) -> None:
+def train(config: RosaConfig) -> None:
     rdm = RosaDataModule(
-        cfg.paths.adata,
-        data_config=cfg.data,
-        param_config=cfg.params,
+        config.paths.adata,
+        config=config.data_module,
     )
     rdm.setup()
 
     rlm = RosaLightningModule(
         in_dim=rdm.len_input,
         out_dim=rdm.len_target,
-        model_config=cfg.model,
-        learning_rate=cfg.params.learning_rate,
+        config=config.module,
     )
     print(rlm)
 
@@ -35,7 +33,7 @@ def train(cfg: RosaConfig) -> None:
         check_val_every_n_epoch=1,
         # log_every_n_steps=10_000,
         logger=TensorBoardLogger(".", "", ""),
-        resume_from_checkpoint=cfg.paths.chkpt,
+        resume_from_checkpoint=config.paths.chkpt,
         accelerator="cpu",
         devices=1,
         callbacks=[checkpoint_callback],

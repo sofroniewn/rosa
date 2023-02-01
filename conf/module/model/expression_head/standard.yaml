@@ -1,0 +1,3 @@
+projection: True
+activation: softplus
+likelihood: null

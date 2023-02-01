@@ -10,12 +10,11 @@ cs = ConfigStore.instance()
 cs.store(name="rosa_config", node=RosaConfig)
 
 
-def predict(cfg: RosaConfig, chkpt: str) -> ad.AnnData:
+def predict(config: RosaConfig, chkpt: str) -> ad.AnnData:
     # Create Data Module
     rdm = RosaDataModule(
-        cfg.paths.adata,
-        data_config=cfg.data,
-        param_config=cfg.params,
+        config.paths.adata,
+        config=config.data_module,
     )
     rdm.setup()
 
@@ -24,8 +23,7 @@ def predict(cfg: RosaConfig, chkpt: str) -> ad.AnnData:
         chkpt,
         in_dim=rdm.len_input,
         out_dim=rdm.len_target,
-        model_config=cfg.model,
-        learning_rate=cfg.params.learning_rate,
+        config=config.module,
     )
     print(rlm)
 

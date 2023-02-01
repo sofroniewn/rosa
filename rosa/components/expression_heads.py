@@ -56,6 +56,9 @@ class ProjectionExpressionHead(nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.model(x).squeeze(-1)
 
+    def sample(self, x: torch.Tensor) -> torch.Tensor:
+        return x
+
 
 class ZeroInflatedNegativeBinomialExpressionHead(nn.Module):
     def __init__(
@@ -92,6 +95,9 @@ class ZeroInflatedNegativeBinomialExpressionHead(nn.Module):
             scale=px_scale,
         )
 
+    def sample(self, x: torch.distributions.Distribution) -> torch.Tensor:
+        return x.mean
+
 
 class NegativeBinomialExpressionHead(nn.Module):
     def __init__(
@@ -124,6 +130,9 @@ class NegativeBinomialExpressionHead(nn.Module):
             theta=px_r,
             scale=px_scale,
         )
+
+    def sample(self, x: torch.distributions.Distribution) -> torch.Tensor:
+        return x.mean
 
 
 class NegativeBinomialMixtureExpressionHead(nn.Module):
@@ -168,6 +177,9 @@ class NegativeBinomialMixtureExpressionHead(nn.Module):
             theta2=px_r_2,
             mixture_logits=px_mixture,
         )
+
+    def sample(self, x: torch.distributions.Distribution) -> torch.Tensor:
+        return x.mean
 
 
 ExpressionHead = Union[

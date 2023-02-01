@@ -6,21 +6,21 @@ from anndata import read_h5ad  # type: ignore
 from pytorch_lightning import LightningDataModule
 from torch.utils.data import DataLoader
 
-from .config import DataConfig, ParamConfig
+from .config import DataModuleConfig
 from .datasets import (RosaJointDataset, RosaObsDataset, RosaVarDataset,
                        rosa_dataset_factory)
 
 
 class RosaDataModule(LightningDataModule):
     def __init__(
-        self, adata_path: str, data_config: DataConfig, param_config: ParamConfig
+        self, adata_path: str, config: DataModuleConfig
     ):
         super().__init__()
 
         self.adata_path = adata_path
-        self.data_config = data_config
-        self.batch_size = param_config.batch_size
-        self.num_workers = param_config.num_workers
+        self.data_config = config.data
+        self.batch_size = config.batch_size
+        self.num_workers = config.num_workers
 
     def prepare_data(self):
         pass

@@ -64,6 +64,9 @@ class RosaSingleModel(nn.Module):
     ) -> Union[torch.Tensor, torch.distributions.Distribution]:
         return self.main(x)
 
+    def sample(self, x: Union[torch.Tensor, torch.distributions.Distribution]) -> torch.Tensor:
+        return self.main['head'].sample(x)
+
 
 class RosaJointModel(nn.Module):
     def __init__(
@@ -166,3 +169,6 @@ class RosaJointModel(nn.Module):
         self, x: Tuple[torch.Tensor, ...]
     ) -> Union[torch.Tensor, torch.distributions.Distribution]:
         return self.main(x)
+
+    def sample(self, x: Union[torch.Tensor, torch.distributions.Distribution]) -> torch.Tensor:
+        return self.main['head'].sample(x)

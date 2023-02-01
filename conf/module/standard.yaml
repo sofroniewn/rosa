@@ -1,0 +1,5 @@
+learning_rate: 0.001
+criterion:
+  loss_function: mae
+defaults:
+  - model: single-expression-head-only
