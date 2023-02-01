@@ -8,7 +8,9 @@ from pytorch_lightning import LightningModule
 from .models import RosaJointModel, RosaSingleModel
 
 
-def mean_log_prob_criterion(output: torch.distributions.Distribution, target: torch.Tensor) -> torch.Tensor:
+def mean_log_prob_criterion(
+    output: torch.distributions.Distribution, target: torch.Tensor
+) -> torch.Tensor:
     return -output.log_prob(target).sum(-1).mean()
 
 
@@ -39,7 +41,10 @@ class RosaLightningModule(LightningModule):
     def training_step(self, batch, _):
         x, y = batch
         y_hat = self(x)
-        if isinstance(y_hat, torch.distributions.Distribution) and self.criterion is None:
+        if (
+            isinstance(y_hat, torch.distributions.Distribution)
+            and self.criterion is None
+        ):
             loss = mean_log_prob_criterion(y_hat, y)
         else:
             loss = self.model.loss(y_hat, y)
@@ -49,7 +54,10 @@ class RosaLightningModule(LightningModule):
     def validation_step(self, batch, _):
         x, y = batch
         y_hat = self(x)
-        if isinstance(y_hat, torch.distributions.Distribution) and self.criterion is None:
+        if (
+            isinstance(y_hat, torch.distributions.Distribution)
+            and self.criterion is None
+        ):
             loss = mean_log_prob_criterion(y_hat, y)
         else:
             loss = self.model.loss(y_hat, y)

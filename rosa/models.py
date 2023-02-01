@@ -4,7 +4,8 @@ from typing import Callable, Tuple, Union
 import torch
 import torch.nn as nn
 
-from .components import FeedForward, InputEmbed, ParallelEmbed, expression_head_factory, join_embeds_factory
+from .components import (FeedForward, InputEmbed, ParallelEmbed,
+                         expression_head_factory, join_embeds_factory)
 from .config import ModelConfig
 
 
@@ -58,7 +59,9 @@ class RosaSingleModel(nn.Module):
             )
         )
 
-    def forward(self, x: torch.Tensor) -> Union[torch.Tensor, torch.distributions.Distribution]:
+    def forward(
+        self, x: torch.Tensor
+    ) -> Union[torch.Tensor, torch.distributions.Distribution]:
         return self.main(x)
 
 
@@ -102,28 +105,34 @@ class RosaJointModel(nn.Module):
                 in_dim[1], embedding_dim_1, config=config.input_embed_1
             )
 
-        input_embeds = nn.ModuleList([
-            nn.Sequential(
-                OrderedDict(
-                    [
-                        ("layer_norm_0", layer_norm_nn_0),
-                        ("input_embed_0", input_embed_0),
-                    ]
-                )
-            ),
-            nn.Sequential(
-                OrderedDict(
-                    [
-                        ("layer_norm_1", layer_norm_nn_1),
-                        ("input_embed_1", input_embed_1),
-                    ]
-                )
-            ),
-        ])
+        input_embeds = nn.ModuleList(
+            [
+                nn.Sequential(
+                    OrderedDict(
+                        [
+                            ("layer_norm_0", layer_norm_nn_0),
+                            ("input_embed_0", input_embed_0),
+                        ]
+                    )
+                ),
+                nn.Sequential(
+                    OrderedDict(
+                        [
+                            ("layer_norm_1", layer_norm_nn_1),
+                            ("input_embed_1", input_embed_1),
+                        ]
+                    )
+                ),
+            ]
+        )
         dual_embed = ParallelEmbed(input_embeds)
         if config.join_embeds is None:
-            raise ValueError(f'A join embedding method must be specified for a joint model')
-        join_embeds = join_embeds_factory((embedding_dim_0, embedding_dim_1), config.join_embeds)
+            raise ValueError(
+                f"A join embedding method must be specified for a joint model"
+            )
+        join_embeds = join_embeds_factory(
+            (embedding_dim_0, embedding_dim_1), config.join_embeds
+        )
         embedding_dim = join_embeds.out_dim
 
         # Add feed forward layer if provided
@@ -153,5 +162,7 @@ class RosaJointModel(nn.Module):
             )
         )
 
-    def forward(self, x: Tuple[torch.Tensor, ...]) -> Union[torch.Tensor, torch.distributions.Distribution]:
+    def forward(
+        self, x: Tuple[torch.Tensor, ...]
+    ) -> Union[torch.Tensor, torch.distributions.Distribution]:
         return self.main(x)

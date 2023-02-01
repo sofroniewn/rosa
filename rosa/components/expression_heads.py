@@ -3,15 +3,11 @@ from typing import Union
 
 import torch
 import torch.nn as nn
-
-from ..config import (
-    ExpressionHeadActivations,
-    ExpressionHeadConfig,
-    ExpressionHeadLikelihood,
-)
-
 from scvi.distributions import (NegativeBinomial, NegativeBinomialMixture,
                                 ZeroInflatedNegativeBinomial)
+
+from ..config import (ExpressionHeadActivations, ExpressionHeadConfig,
+                      ExpressionHeadLikelihood)
 
 
 class ProjectionExpressionHead(nn.Module):
@@ -31,10 +27,12 @@ class ProjectionExpressionHead(nn.Module):
             raise ValueError(f"An activation should not be used for classification")
 
         if config.projection:
-            projection_nn = nn.Linear(in_dim, out_dim * n_bins) # type: nn.Module
+            projection_nn = nn.Linear(in_dim, out_dim * n_bins)  # type: nn.Module
         else:
             if in_dim != out_dim * n_bins:
-                raise ValueError(f'If no projection is used input dim {in_dim} must match output dim {out_dim * n_bins}')
+                raise ValueError(
+                    f"If no projection is used input dim {in_dim} must match output dim {out_dim * n_bins}"
+                )
             projection_nn = nn.Identity()
 
         if config.activation is None:
@@ -68,18 +66,16 @@ class ZeroInflatedNegativeBinomialExpressionHead(nn.Module):
     ):
         super().__init__()
         if config.library_size is None:
-            raise ValueError(f'Expression head library size must be provided for likelihood model')
+            raise ValueError(
+                f"Expression head library size must be provided for likelihood model"
+            )
         self.library_size = torch.scalar_tensor(config.library_size)
 
         self.model = nn.ModuleDict(
             {
-                "px_scale": nn.Sequential(
-                    nn.Linear(in_dim, out_dim), nn.Softplus()
-                ),
+                "px_scale": nn.Sequential(nn.Linear(in_dim, out_dim), nn.Softplus()),
                 "px_r": nn.Linear(in_dim, out_dim),
-                "px_dropout": nn.Linear(
-                    in_dim, out_dim
-                ),
+                "px_dropout": nn.Linear(in_dim, out_dim),
             }
         )
 
@@ -95,7 +91,7 @@ class ZeroInflatedNegativeBinomialExpressionHead(nn.Module):
             zi_logits=px_dropout,
             scale=px_scale,
         )
-        
+
 
 class NegativeBinomialExpressionHead(nn.Module):
     def __init__(
@@ -106,14 +102,14 @@ class NegativeBinomialExpressionHead(nn.Module):
     ):
         super().__init__()
         if config.library_size is None:
-            raise ValueError(f'Expression head library size must be provided for likelihood model')
+            raise ValueError(
+                f"Expression head library size must be provided for likelihood model"
+            )
         self.library_size = torch.scalar_tensor(config.library_size)
 
         self.model = nn.ModuleDict(
             {
-                "px_scale": nn.Sequential(
-                    nn.Linear(in_dim, out_dim), nn.Softplus()
-                ),
+                "px_scale": nn.Sequential(nn.Linear(in_dim, out_dim), nn.Softplus()),
                 "px_r": nn.Linear(in_dim, out_dim),
             }
         )
@@ -130,7 +126,6 @@ class NegativeBinomialExpressionHead(nn.Module):
         )
 
 
-
 class NegativeBinomialMixtureExpressionHead(nn.Module):
     def __init__(
         self,
@@ -140,22 +135,18 @@ class NegativeBinomialMixtureExpressionHead(nn.Module):
     ):
         super().__init__()
         if config.library_size is None:
-            raise ValueError(f'Expression head library size must be provided for likelihood model')
+            raise ValueError(
+                f"Expression head library size must be provided for likelihood model"
+            )
         self.library_size = torch.scalar_tensor(config.library_size)
 
         self.model = nn.ModuleDict(
             {
-                "px_scale_1": nn.Sequential(
-                    nn.Linear(in_dim, out_dim), nn.Softplus()
-                ),
+                "px_scale_1": nn.Sequential(nn.Linear(in_dim, out_dim), nn.Softplus()),
                 "px_r_1": nn.Linear(in_dim, out_dim),
-                "px_scale_2": nn.Sequential(
-                    nn.Linear(in_dim, out_dim), nn.Softplus()
-                ),
+                "px_scale_2": nn.Sequential(nn.Linear(in_dim, out_dim), nn.Softplus()),
                 "px_r_2": nn.Linear(in_dim, out_dim),
-                "px_mixture": nn.Linear(
-                    in_dim, out_dim
-                ),
+                "px_mixture": nn.Linear(in_dim, out_dim),
             }
         )
 
@@ -179,10 +170,17 @@ class NegativeBinomialMixtureExpressionHead(nn.Module):
         )
 
 
-ExpressionHead = Union[ProjectionExpressionHead, NegativeBinomialExpressionHead, ZeroInflatedNegativeBinomialExpressionHead, NegativeBinomialMixtureExpressionHead]
+ExpressionHead = Union[
+    ProjectionExpressionHead,
+    NegativeBinomialExpressionHead,
+    ZeroInflatedNegativeBinomialExpressionHead,
+    NegativeBinomialMixtureExpressionHead,
+]
 
 
-def expression_head_factory(in_dim:int, out_dim:int, config:ExpressionHeadConfig) -> ExpressionHead:
+def expression_head_factory(
+    in_dim: int, out_dim: int, config: ExpressionHeadConfig
+) -> ExpressionHead:
     if config.likelihood is None:
         return ProjectionExpressionHead(in_dim, out_dim, config)
     if config.likelihood == ExpressionHeadLikelihood.NB.name.lower():
@@ -191,4 +189,4 @@ def expression_head_factory(in_dim:int, out_dim:int, config:ExpressionHeadConfig
         return ZeroInflatedNegativeBinomialExpressionHead(in_dim, out_dim, config)
     if config.likelihood == ExpressionHeadLikelihood.NBM.name.lower():
         return NegativeBinomialMixtureExpressionHead(in_dim, out_dim, config)
-    raise ValueError(f'Unrecongnized expression head likelihood {config.likelihood}')
+    raise ValueError(f"Unrecongnized expression head likelihood {config.likelihood}")
