@@ -1,8 +1,6 @@
 dropout_prob: 0.5
 layer_norm: True
-criterion:
-  loss_function: mse
+input_embed: null
 defaults:
-  - expression_head: standard
+  - expression_head: likelihood
   - feed_forward: standard
-  - input_embed: standard

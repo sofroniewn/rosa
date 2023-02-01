@@ -1,5 +1,5 @@
 learning_rate: 0.001
 criterion:
-  loss_function: mae
+  loss_function: logprob
 defaults:
-  - model: single-expression-head-only
+  - model: single

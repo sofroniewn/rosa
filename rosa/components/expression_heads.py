@@ -170,13 +170,15 @@ class NegativeBinomialMixtureExpressionHead(nn.Module):
 
         px_mixture = self.model["px_mixture"].forward(x)
 
-        return NegativeBinomialMixture(
+        nbm = NegativeBinomialMixture(
             mu1=px_rate_1,
             mu2=px_rate_2,
             theta1=px_r_1,
             theta2=px_r_2,
             mixture_logits=px_mixture,
         )
+        nbm.theta2 = px_r_2 # hack to fix scvi-tools bug
+        return nbm
 
     def sample(self, x: torch.distributions.Distribution) -> torch.Tensor:
         return x.mean

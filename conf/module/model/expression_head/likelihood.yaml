@@ -1,0 +1,4 @@
+projection: null
+activation: null
+likelihood: zinb
+library_size: 10_000

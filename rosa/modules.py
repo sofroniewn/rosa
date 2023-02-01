@@ -53,7 +53,7 @@ class RosaLightningModule(LightningModule):
     def predict_step(self, batch, _):
         x, _ = batch
         y_hat = self(x)
-        return y_hat #self.model.sample(y_hat)
+        return self.model.sample(y_hat)
 
     def configure_optimizers(self):
         return optim.AdamW(self.model.parameters(), lr=self.learning_rate)

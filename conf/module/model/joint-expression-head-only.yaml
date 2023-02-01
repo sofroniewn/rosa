@@ -4,8 +4,6 @@ feed_forward: null
 input_embed: null
 input_embed_1: null
 layer_norm_1: True
-criterion:
-  loss_function: mse
 join_embeds:
   method: cat
 defaults:

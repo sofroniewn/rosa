@@ -46,6 +46,7 @@ class RosaSingleModel(nn.Module):
             out_dim,
             config=config.expression_head,
         )
+        self.sample = head.sample
 
         self.main = nn.Sequential(
             OrderedDict(
@@ -63,9 +64,6 @@ class RosaSingleModel(nn.Module):
         self, x: torch.Tensor
     ) -> Union[torch.Tensor, torch.distributions.Distribution]:
         return self.main(x)
-
-    def sample(self, x: Union[torch.Tensor, torch.distributions.Distribution]) -> torch.Tensor:
-        return self.main['head'].sample(x)
 
 
 class RosaJointModel(nn.Module):
@@ -152,6 +150,7 @@ class RosaJointModel(nn.Module):
             out_dim,
             config=config.expression_head,
         )
+        self.sample = head.sample
 
         self.main = nn.Sequential(
             OrderedDict(
@@ -169,6 +168,3 @@ class RosaJointModel(nn.Module):
         self, x: Tuple[torch.Tensor, ...]
     ) -> Union[torch.Tensor, torch.distributions.Distribution]:
         return self.main(x)
-
-    def sample(self, x: Union[torch.Tensor, torch.distributions.Distribution]) -> torch.Tensor:
-        return self.main['head'].sample(x)

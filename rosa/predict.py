@@ -1,5 +1,3 @@
-from glob import glob
-
 import anndata as ad
 from hydra.core.config_store import ConfigStore
 from pytorch_lightning import Trainer
