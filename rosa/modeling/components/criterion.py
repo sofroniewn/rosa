@@ -3,7 +3,7 @@ from typing import Callable
 import torch
 import torchmetrics.functional as F
 
-from ..config import CriterionConfig, LossFunctions
+from ...utils.config import CriterionConfig, LossFunctions
 
 
 def mean_log_prob_criterion(

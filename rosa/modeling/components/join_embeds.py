@@ -3,7 +3,7 @@ from typing import Tuple, Union
 import torch
 import torch.nn as nn
 
-from ..config import JoinEmbedsConfig, JoinEmbedsMethods
+from ...utils.config import JoinEmbedsConfig, JoinEmbedsMethods
 
 
 class ParallelEmbed(nn.Module):
@@ -47,7 +47,7 @@ class DotEmbeds(nn.Module):
         self.out_dim = 1
 
     def forward(self, x: Tuple[torch.Tensor, torch.Tensor]) -> torch.Tensor:
-        return torch.einsum('...i, ...i -> ...', *x)
+        return torch.einsum("...i, ...i -> ...", *x)
 
 
 class BilinearEmbeds(nn.Module):

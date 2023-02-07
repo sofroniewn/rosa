@@ -1,8 +1,8 @@
 import anndata as ad
 from pytorch_lightning import Trainer
 
-from .config import RosaConfig
-from .datamodules import RosaDataModule
+from ..data import RosaDataModule
+from ..utils import RosaConfig
 from .modules import RosaLightningModule
 
 

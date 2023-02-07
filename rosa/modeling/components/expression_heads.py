@@ -9,7 +9,7 @@ from scvi.distributions import (
     ZeroInflatedNegativeBinomial,
 )
 
-from ..config import (
+from ...utils.config import (
     ExpressionHeadActivations,
     ExpressionHeadConfig,
     ExpressionHeadLikelihood,

@@ -6,7 +6,7 @@ from anndata import read_h5ad  # type: ignore
 from pytorch_lightning import LightningDataModule
 from torch.utils.data import DataLoader
 
-from .config import DataModuleConfig
+from ..utils.config import DataModuleConfig
 from .datasets import (
     RosaJointDataset,
     RosaObsDataset,

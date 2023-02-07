@@ -8,7 +8,7 @@ from anndata import AnnData  # type: ignore
 from torch import Tensor
 from torch.utils.data import Dataset
 
-from .config import DataConfig, ExpressionTransformConfig
+from ..utils.config import DataConfig, ExpressionTransformConfig
 from .transforms import ExpressionTransform, ToTensor
 
 warnings.simplefilter(action="ignore", category=FutureWarning)
@@ -177,11 +177,12 @@ class RosaJointDataset(_JointDataset):
 
 class RosaObsVarDataset(RosaJointDataset):
     """Iterates over cells
-   
+
     When used with a batch of cell, returns data as (BxGxCE, BxGxGE), BxG
     where B is number of cells in batch, G is number of genes, CE is length
     of cell embedding, GE is length of gene embedding.
     """
+
     def __init__(
         self,
         adata: AnnData,
@@ -192,7 +193,13 @@ class RosaObsVarDataset(RosaJointDataset):
         expression_transform_config: Optional[ExpressionTransformConfig] = None,
         n_var_sample: Optional[int] = None,
     ) -> None:
-        super(RosaObsVarDataset, self).__init__(adata, obs_input=obs_input, var_input=var_input, expression_layer=expression_layer, expression_transform_config=expression_transform_config)
+        super(RosaObsVarDataset, self).__init__(
+            adata,
+            obs_input=obs_input,
+            var_input=var_input,
+            expression_layer=expression_layer,
+            expression_transform_config=expression_transform_config,
+        )
         self.var_indices = torch.arange(self.expression.shape[1]).float()
         self.n_var_sample = n_var_sample
 
@@ -207,7 +214,10 @@ class RosaObsVarDataset(RosaJointDataset):
             sample_var = torch.multinomial(self.var_indices, self.n_var_sample)
             expression = expression[sample_var]
             var_input = var_input[sample_var]
-        full_input = (obs_input.expand((var_input.shape[0], obs_input.shape[0])), var_input)
+        full_input = (
+            obs_input.expand((var_input.shape[0], obs_input.shape[0])),
+            var_input,
+        )
         return full_input, expression
 
 

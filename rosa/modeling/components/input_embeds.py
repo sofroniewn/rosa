@@ -4,7 +4,7 @@ from typing import Tuple, Union
 import torch
 import torch.nn as nn
 
-from ..config import InputEmbedConfig
+from ...utils.config import InputEmbedConfig
 
 
 class InputEmbed(nn.Module):

@@ -2,8 +2,8 @@ from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.loggers import TensorBoardLogger
 
-from .config import RosaConfig
-from .datamodules import RosaDataModule
+from ..data import RosaDataModule
+from ..utils import RosaConfig
 from .modules import RosaLightningModule
 
 

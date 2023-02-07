@@ -4,6 +4,7 @@ from typing import Callable, Tuple, Union
 import torch
 import torch.nn as nn
 
+from ..utils.config import ModelConfig
 from .components import (
     FeedForward,
     InputEmbed,
@@ -11,7 +12,6 @@ from .components import (
     expression_head_factory,
     join_embeds_factory,
 )
-from .config import ModelConfig
 
 
 class RosaSingleModel(nn.Module):

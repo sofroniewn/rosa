@@ -6,7 +6,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from .config import ExpressionTransformConfig
+from ..utils.config import ExpressionTransformConfig
 
 
 class ToTensor(nn.Module):

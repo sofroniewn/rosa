@@ -3,8 +3,8 @@ from typing import Union
 import torch.optim as optim
 from pytorch_lightning import LightningModule
 
+from ..utils.config import ModuleConfig
 from .components import criterion_factory
-from .config import ModuleConfig
 from .models import RosaJointModel, RosaSingleModel
 
 
