@@ -1,6 +1,8 @@
 dropout_prob: 0.5
 layer_norm: True
 input_embed: null
+feed_forward:
+  hidden_dim: 1024
+  dropout_prob: 0.5
 defaults:
   - expression_head: likelihood
-  - feed_forward: standard

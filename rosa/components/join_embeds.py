@@ -37,6 +37,19 @@ class CatEmbeds(nn.Module):
         return torch.cat(x, dim=-1)
 
 
+class DotEmbeds(nn.Module):
+    def __init__(self, in_dim: Tuple[int, int]) -> None:
+        super(DotEmbeds, self).__init__()
+        if in_dim[0] != in_dim[1]:
+            raise ValueError(
+                f"Embeddings must have same dimensions for add method, got {in_dim}"
+            )
+        self.out_dim = 1
+
+    def forward(self, x: Tuple[torch.Tensor, torch.Tensor]) -> torch.Tensor:
+        return torch.einsum('...i, ...i -> ...', *x)
+
+
 class BilinearEmbeds(nn.Module):
     def __init__(self, in_dim: Tuple[int, int], out_dim) -> None:
         super(BilinearEmbeds, self).__init__()
@@ -64,7 +77,7 @@ class AttentionEmbeds(nn.Module):
         return torch.einsum("..., i -> ...i", atten, self.value)
 
 
-JoinEmbeds = Union[AddEmbeds, AttentionEmbeds, BilinearEmbeds, CatEmbeds]
+JoinEmbeds = Union[AddEmbeds, AttentionEmbeds, BilinearEmbeds, CatEmbeds, DotEmbeds]
 
 
 def join_embeds_factory(
@@ -78,4 +91,6 @@ def join_embeds_factory(
         return BilinearEmbeds(in_dim, config.out_dim)
     if config.method == JoinEmbedsMethods.ATTENTION.name.lower():
         return AttentionEmbeds(in_dim, config.out_dim)
+    if config.method == JoinEmbedsMethods.DOT.name.lower():
+        return DotEmbeds(in_dim)
     raise ValueError(f"Activation {config.method} not recognized")

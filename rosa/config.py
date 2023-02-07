@@ -78,6 +78,7 @@ class JoinEmbedsMethods(Enum):
     CAT = auto()
     BILINEAR = auto()
     ATTENTION = auto()
+    DOT = auto()
 
 
 @dataclass

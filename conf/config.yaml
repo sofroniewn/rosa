@@ -5,5 +5,5 @@ paths:
   adata: /Users/nsofroniew/Documents/data/multiomics/cell_census/tabula_sapiens_by_features_with_embeds_new_norm.h5ad
   chkpt: null
 defaults:
-  - data_module: gene
+  - data_module: joint
   - module: standard

@@ -175,6 +175,42 @@ class RosaJointDataset(_JointDataset):
         self.adata.layers[prediction_layer] = super()._postprocess(results).numpy()
 
 
+class RosaObsVarDataset(RosaJointDataset):
+    """Iterates over cells
+   
+    When used with a batch of cell, returns data as (BxGxCE, BxGxGE), BxG
+    where B is number of cells in batch, G is number of genes, CE is length
+    of cell embedding, GE is length of gene embedding.
+    """
+    def __init__(
+        self,
+        adata: AnnData,
+        *,
+        var_input: str,
+        obs_input: str,
+        expression_layer: Optional[str] = None,
+        expression_transform_config: Optional[ExpressionTransformConfig] = None,
+        n_var_sample: Optional[int] = None,
+    ) -> None:
+        super(RosaObsVarDataset, self).__init__(adata, obs_input=obs_input, var_input=var_input, expression_layer=expression_layer, expression_transform_config=expression_transform_config)
+        self.var_indices = torch.arange(self.expression.shape[1]).float()
+        self.n_var_sample = n_var_sample
+
+    def __len__(self) -> int:
+        return self.expression.shape[0]
+
+    def __getitem__(self, idx: int) -> Tuple[Tuple[Tensor, Tensor], Tensor]:
+        obs_input = self.input[0][idx]
+        expression = self.expression[idx]
+        var_input = self.input[1]
+        if self.n_var_sample is not None:
+            sample_var = torch.multinomial(self.var_indices, self.n_var_sample)
+            expression = expression[sample_var]
+            var_input = var_input[sample_var]
+        full_input = (obs_input.expand((var_input.shape[0], obs_input.shape[0])), var_input)
+        return full_input, expression
+
+
 def _prepare_expression(
     adata: AnnData,
     expression_layer: Optional[str] = None,
@@ -194,9 +230,9 @@ def _prepare_expression(
 
 def rosa_dataset_factory(
     adata: AnnData, data_config: DataConfig
-) -> Union[RosaObsDataset, RosaVarDataset, RosaJointDataset]:
+) -> Union[RosaObsDataset, RosaVarDataset, RosaJointDataset, RosaObsVarDataset]:
     if data_config.obs_input is not None and data_config.var_input is not None:
-        return RosaJointDataset(
+        return RosaObsVarDataset(
             adata,
             var_input=data_config.var_input,
             obs_input=data_config.obs_input,

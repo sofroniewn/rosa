@@ -1,5 +1,5 @@
 learning_rate: 0.001
 criterion:
-  loss_function: logprob
+  loss_function: mse
 defaults:
-  - model: single
+  - model: joint-simple-atten
