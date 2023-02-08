@@ -13,7 +13,7 @@ from tqdm import tqdm
 from omegaconf import OmegaConf
 
 
-from ..utils.config import BulkDataConfig, PathConfig, PreProcessingConfig, RosaConfig, EmbeddingPathsConfig
+from ..utils.config import BulkDataConfig, PathConfig, PreProcessingConfig, RosaConfig, EmbeddingPathsConfig, SplitConfig, FilterConfig
 
 
 def _add_gene_embeddings(
@@ -83,19 +83,14 @@ def add_gene_embeddings(adata: ad.AnnData, config: EmbeddingPathsConfig) -> ad.A
     return adata
 
 
-def add_train_indicators(
+def add_indicators(
     adata: ad.AnnData,
-    fraction: float = 0.7,
-    seed: Optional[int] = None,
-    train_key: str = "train",
+    config: SplitConfig,
 ) -> ad.AnnData:
-    # Set train indicator
-    if seed is None:
-        np.random.seed(42)
-    else:
-        np.random.seed(seed)
-    adata.var[train_key] = np.random.rand(adata.n_vars) <= fraction
-    adata.obs[train_key] = np.random.rand(adata.n_obs) <= fraction
+
+    np.random.seed(config.seed)
+    adata.var[config.key] = np.random.rand(adata.n_vars) <= config.fraction
+    adata.obs[config.key] = np.random.rand(adata.n_obs) <= config.fraction
     return adata
 
 
@@ -134,13 +129,9 @@ def normalize_expression(
     return adata
 
 
-def clean_cells_genes(adata: ad.AnnData) -> ad.AnnData:
+def filter_cells_and_genes(adata: ad.AnnData, config: FilterConfig) -> ad.AnnData:
+    # Cells must express at least one gene
     sc.pp.filter_cells(adata, min_genes=1)
-
-    # # Drop cell/ tissue types with less than 50 cells
-    # drop_cells = adata.obs["count"] < 50
-    # print(f"Dropping {drop_cells.sum()} cell/tissue types")
-    # adata = adata[np.logical_not(drop_cells), :]
 
     # Drop genes for which no expression recorded
     drop_genes = adata.X.sum(axis=0) == 0
@@ -148,9 +139,10 @@ def clean_cells_genes(adata: ad.AnnData) -> ad.AnnData:
     adata = adata[:, np.logical_not(drop_genes)]
 
     # Drop non-protein coding genes
-    drop_genes = adata.var["gene_biotype"] != "protein_coding"
-    print(f"Dropping {drop_genes.sum()} genes")
-    adata = adata[:, np.logical_not(drop_genes)]
+    if config.coding_only == True:
+        drop_genes = adata.var["gene_biotype"] != "protein_coding"
+        print(f"Dropping {drop_genes.sum()} genes")
+        adata = adata[:, np.logical_not(drop_genes)]
     return adata
 
 
@@ -194,14 +186,14 @@ def calculate_gene_embeddings_pca(adata: ad.AnnData, n_pcs: int = 512) -> ad.Ann
     return adata
 
 
-def add_dendrogram_and_hvgs(adata: ad.AnnData) -> ad.AnnData:
+def add_dendrogram_and_hvgs(adata: ad.AnnData, groupby:str) -> ad.AnnData:
     # Add highly variable genes
     if "log1p" in adata.uns:
         adata.uns["log1p"]["base"] = None  # needed to deal with error?
     sc.pp.highly_variable_genes(adata, min_mean=0.0125, max_mean=3, min_disp=0.5)
 
     # Add dendrogram
-    sc.tl.dendrogram(adata, groupby="label", use_rep="X")
+    sc.tl.dendrogram(adata, groupby=groupby, use_rep="X")
     return adata
 
 
@@ -351,6 +343,34 @@ def preprocessing_pipeline(adata: ad.AnnData, config: PreProcessingConfig) -> ad
     # Add gene biotype information
     adata = add_gene_biotype(adata)
 
+    # Filter cells and genes
+    if config.filter is not None:
+        adata = filter_cells_and_genes(adata, config.filter)
+
+    # Add training indicators
+    if config.split is not None:
+        adata = add_indicators(adata, config.split)
+
+
+    # Normalize expression
+    adata = normalize_expression(adata)
+    # Bin expression
+    adata = bin_expression(adata, n_bins=128)
+
+    # Calculate and add cell embeddings using only traning data
+    adata = calculate_cell_embeddings_pca(adata, 64)
+
+    # calculate gene embedding pcas
+    adata = calculate_gene_embeddings_pca(adata, 128)
+
+    # Add dendrogram, hvgs, and marker genes
+    # adata = add_marker_genes(adata, config.markers)
+
+    TABULA_SAPIENS_BY_CELL_TYPE_SCVI_DE = "/Users/nsofroniew/Documents/data/multiomics/cell_census_old/tabula_sapiens_by_features_scvi_model_new_norm_de.csv"
+    adata = add_dendrogram_and_hvgs(adata, groupby='cell_type')
+    de_df = pd.read_csv(TABULA_SAPIENS_BY_CELL_TYPE_SCVI_DE, index_col=0)
+    adata = add_marker_genes(adata, differential_expression=de_df)
+
     # Attach preprocessing metadata
     adata.uns['preprocessing'] = OmegaConf.to_container(config)
 
@@ -383,25 +403,3 @@ def preprocess(config: RosaConfig) -> None:
 
     # Save anndata object
     adata.write_h5ad(output_path)
-
-
-###########################################################
-# Add train indicators
-# adata = add_train_indicators(adata, fraction=0.7, seed=42)
-
-# Clean cells and genes
-# adata = clean_cells_genes(adata)
-# # Normalize expression
-# adata = normalize_expression(adata)
-# # Bin expression
-# adata = bin_expression(adata, n_bins=128)
-
-# # # Calculate and add cell embeddings using only traning data
-# adata = calculate_cell_embeddings_pca(adata, 64)
-
-
-# # Add dendrogram, hvgs, and marker genes
-# adata = add_dendrogram_and_hvgs(adata)
-# de_df = pd.read_csv(TABULA_SAPIENS_BY_CELL_TYPE_SCVI_DE, index_col=0)
-# adata = add_marker_genes(adata, differential_expression=de_df)
-###########################################################

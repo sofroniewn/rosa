@@ -3,17 +3,23 @@ hydra:
       dir: /Users/nsofroniew/Documents/data/rosa/outputs/${now:%Y-%m-%d}/${now:%H-%M-%S}
 paths:
   adata: /Users/nsofroniew/Documents/data/multiomics/cell_census/tabula_sapiens_by_features_with_embeds_new_norm.h5ad
-  chkpt: null
   base: /Users/nsofroniew/Documents/data/multiomics/cell_census
   dataset: tabula_sapiens
-  preprocessed: pbulk
+  preprocessed: by_cell_type # pbulk or by_cell_type
+  chkpt: null
   gene_embeddings:
     gene_intervals: /Users/nsofroniew/Documents/data/multiomics/enformer/Homo_sapiens.GRCh38.genes.bed
     embeddings: /Users/nsofroniew/Documents/data/multiomics/enformer/Homo_sapiens.GRCh38.genes.enformer_tss_embedding.zarr
 preprocessing:
   bulk_data:
-    sample_col: donor_id # Use donor_id or dataset_id
+    sample_col: dataset_id # Use donor_id or dataset_id
     label_col: cell_type
+  filter:
+    coding_only: True
+  split:
+    seed: 42
+    fraction: 0.7
+    key: train
 defaults:
   - data_module: gene
   - module: standard

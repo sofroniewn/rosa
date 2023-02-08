@@ -21,21 +21,28 @@ class PathConfig:
 
 
 @dataclass
-class PreProcessingConfig:
-    bulk_data: None
-    splits: None
+class SplitConfig:
+    seed: int
+    fraction: float
+    key: str
 
 
-dataclass
+@dataclass
 class BulkDataConfig:
     sample_col: str
     label_col: str
 
 
-dataclass
-class SplitsConfig:
-    seed: int
-    train_fraction: float
+@dataclass
+class FilterConfig:
+    coding_only: bool
+
+
+@dataclass
+class PreProcessingConfig:
+    bulk_data: Optional[BulkDataConfig]
+    split: Optional[SplitConfig]
+    filter: Optional[FilterConfig]
 
 
 @dataclass
