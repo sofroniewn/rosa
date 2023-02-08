@@ -1,7 +1,7 @@
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint
 from rosa import GeneAnnDataModule
-from rosa.models import SingleSCVIDecoderEmbedding2ExpressionModel
+from rosa.models.models import SingleSCVIDecoderEmbedding2ExpressionModel
 
 
 BASE_PT = "/Users/nsofroniew/Documents/data/multiomics/enformer"

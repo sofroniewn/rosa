@@ -1,8 +1,12 @@
 import cell_census
-from rosa.preprocessing import average_expression_per_feature
+from rosa.data.preprocessing import average_expression_per_feature
+from pathlib import Path
 
 
-ADATA_PT = "/Users/nsofroniew/Documents/data/multiomics/cell_census/tabula_sapiens.h5ad"
+BASE = "/Users/nsofroniew/Documents/data/multiomics/cell_census"
+DATASET = "tabula_sapiens"
+
+path = Path(BASE) / (DATASET + '.h5ad')
 
 # Open cell census
 census = cell_census.open_soma()
@@ -18,4 +22,4 @@ adata = cell_census.get_anndata(
 print(adata)
 
 # Save anndata object
-adata.write(ADATA_PT)
+adata.write(path)

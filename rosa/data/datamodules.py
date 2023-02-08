@@ -5,12 +5,10 @@ import numpy as np
 from anndata import read_h5ad  # type: ignore
 from pytorch_lightning import LightningDataModule
 from torch.utils.data import DataLoader
+import torch
 
 from ..utils.config import DataModuleConfig
 from .datasets import (
-    RosaJointDataset,
-    RosaObsDataset,
-    RosaVarDataset,
     rosa_dataset_factory,
 )
 
@@ -36,29 +34,23 @@ class RosaDataModule(LightningDataModule):
         self.len_input = self.predict_dataset.input_dim
         self.len_target = self.predict_dataset.expression_dim
 
-        # split train and test sets based on adata file
-        # TODO - if not provided, make splits random
-        if isinstance(self.predict_dataset, RosaJointDataset):
-            obs_train = adata.obs["train"]
-            var_train = adata.var["train"]
-            adata_train = adata[obs_train, var_train]
-            adata_val = adata[np.logical_not(obs_train), np.logical_not(var_train)]
-        elif isinstance(self.predict_dataset, RosaObsDataset):
-            obs_train = adata.obs["train"]
-            adata_train = adata[obs_train]
-            adata_val = adata[np.logical_not(obs_train)]
-        elif isinstance(self.predict_dataset, RosaVarDataset):
-            var_train = adata.var["train"]
-            adata_train = adata[:, var_train]
-            adata_val = adata[:, np.logical_not(var_train)]
-        else:
-            raise ValueError(f"Type {type(self.predict_dataset)} not recognized.")
-
+        obs_indices_train = torch.Tensor(np.where(adata.obs["train"])[0])
+        var_indices_train = torch.Tensor(np.where(adata.var["train"])[0])
         self.train_dataset = rosa_dataset_factory(
-            adata_train, data_config=self.data_config
+            adata,
+            data_config=self.data_config,
+            obs_indices=obs_indices_train,
+            var_indices=var_indices_train,
         )
 
-        self.val_dataset = rosa_dataset_factory(adata_val, data_config=self.data_config)
+        obs_indices_val = torch.Tensor(np.where(np.logical_not(adata.obs["train"]))[0])
+        var_indices_val = torch.Tensor(np.where(np.logical_not(adata.var["train"]))[0])
+        self.val_dataset = rosa_dataset_factory(
+            adata,
+            data_config=self.data_config,
+            obs_indices=obs_indices_val,
+            var_indices=var_indices_val,
+        )
         self.test_dataset = self.val_dataset
 
     def train_dataloader(self):

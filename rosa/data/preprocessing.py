@@ -1,14 +1,22 @@
 from typing import Dict, Optional
+from pathlib import Path
 
+import polars as pl
+import zarr
 import anndata as ad
+import decoupler as dc
 import numpy as np
 import pandas as pd
 import scanpy as sc
 from sklearn.decomposition import PCA
 from tqdm import tqdm
+from omegaconf import OmegaConf
 
 
-def add_gene_embeddings(
+from ..utils.config import BulkDataConfig, PathConfig, PreProcessingConfig, RosaConfig, EmbeddingPathsConfig
+
+
+def _add_gene_embeddings(
     adata: ad.AnnData, seqs: pd.DataFrame, embeds: np.ndarray
 ) -> ad.AnnData:
     """Add gene embeddings to an anndata object.
@@ -30,6 +38,10 @@ def add_gene_embeddings(
         and genes with an embedding that weren't in the original AnnData
         object have been ignored.
     """
+    # Set index
+    if "feature_id" in adata.var.columns:
+        adata.var.set_index("feature_id", inplace=True)
+
     print(f"{len(seqs)} genes for embedding")
     print(f"{embeds.shape[0]} gene embeddings loaded")
 
@@ -55,6 +67,19 @@ def add_gene_embeddings(
     seqs = seqs[seqs.index.isin(adata.var.index)]
     adata.var = pd.concat([adata.var, seqs], axis=1)
 
+    return adata
+
+
+def add_gene_embeddings(adata: ad.AnnData, config: EmbeddingPathsConfig) -> ad.AnnData:
+    # Read gene intervals
+    seqs = pl.read_csv(config.gene_intervals, sep="\t", has_header=False).to_pandas()
+    # Set index to ensmbl id which is in column 5
+    seqs = seqs.set_index("column_5")
+
+    # Load gene embeddings
+    embeds = np.asarray(zarr.open(config.embeddings))
+
+    adata = _add_gene_embeddings(adata, seqs, embeds)
     return adata
 
 
@@ -109,7 +134,7 @@ def normalize_expression(
     return adata
 
 
-def clean_cells_genes(adata):
+def clean_cells_genes(adata: ad.AnnData) -> ad.AnnData:
     sc.pp.filter_cells(adata, min_genes=1)
 
     # # Drop cell/ tissue types with less than 50 cells
@@ -293,3 +318,90 @@ def reconstruct_expression(
 
     adata.layers[output_layer] = np.stack(reconstructed_X)
     return adata
+
+
+def bulk_data(adata: ad.AnnData, config: BulkDataConfig) -> ad.AnnData:
+    # Note that genes with no samples will be dropped
+    padata = dc.get_pseudobulk(
+        adata,
+        sample_col=config.sample_col,
+        groups_col=config.label_col,
+        layer=None,
+        min_prop=0,
+        min_cells=0,
+        min_counts=0,
+        min_smpls=0,
+    )
+    padata.var = adata.var.loc[padata.var.index]
+    padata.obs['is_primary_data'] = padata.obs['is_primary_data'].astype(str)
+    return padata
+
+
+def create_io_paths(config: PathConfig) -> tuple[Path, Path]:
+    input_path = Path(config.base) / (config.dataset + '.h5ad')
+    output_path = Path(config.base) / (config.dataset + '_' + config.preprocessed + '.h5ad')
+    return (input_path, output_path)
+
+
+def preprocessing_pipeline(adata: ad.AnnData, config: PreProcessingConfig) -> ad.AnnData:
+    # If necessary perform bulking
+    if config.bulk_data is not None:
+        adata = bulk_data(adata, config.bulk_data)
+
+    # Add gene biotype information
+    adata = add_gene_biotype(adata)
+
+    # Attach preprocessing metadata
+    adata.uns['preprocessing'] = OmegaConf.to_container(config)
+
+    return adata
+
+
+def preprocess(config: RosaConfig) -> None:
+    input_path, output_path = create_io_paths(config.paths)
+    
+    if output_path.exists():
+        print(f'Output path {output_path} exists, loading data')
+
+        adata = ad.read_h5ad(output_path)
+        print(adata)
+
+        if adata.uns.get('preprocessing', None) == OmegaConf.to_container(config.preprocessing):
+            print(f'Data is preprocessed')
+            return
+
+    print(f'Trying to load input data at {input_path}')
+    adata = ad.read_h5ad(input_path)
+    print(adata)
+
+    # Add gene embeddings
+    adata = add_gene_embeddings(adata, config.paths.gene_embeddings)
+
+    # Preprocess
+    adata = preprocessing_pipeline(adata, config.preprocessing)
+    print(adata)
+
+    # Save anndata object
+    adata.write_h5ad(output_path)
+
+
+###########################################################
+# Add train indicators
+# adata = add_train_indicators(adata, fraction=0.7, seed=42)
+
+# Clean cells and genes
+# adata = clean_cells_genes(adata)
+# # Normalize expression
+# adata = normalize_expression(adata)
+# # Bin expression
+# adata = bin_expression(adata, n_bins=128)
+
+# # # Calculate and add cell embeddings using only traning data
+# adata = calculate_cell_embeddings_pca(adata, 64)
+
+
+# # Add dendrogram, hvgs, and marker genes
+# adata = add_dendrogram_and_hvgs(adata)
+# de_df = pd.read_csv(TABULA_SAPIENS_BY_CELL_TYPE_SCVI_DE, index_col=0)
+# adata = add_marker_genes(adata, differential_expression=de_df)
+###########################################################

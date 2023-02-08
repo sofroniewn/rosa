@@ -1,5 +1,5 @@
 from pyensembl import EnsemblRelease
-from rosa.sequences import get_all_sequences, get_all_intervals
+from rosa.data.sequences import get_all_sequences, get_all_intervals
 import pyfaidx
 
 

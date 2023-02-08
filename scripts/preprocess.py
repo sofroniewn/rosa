@@ -1,7 +1,7 @@
 import hydra
 from hydra.core.config_store import ConfigStore
-from rosa import RosaConfig, train
-
+from rosa import RosaConfig
+from rosa.data import preprocess
 
 cs = ConfigStore.instance()
 cs.store(name="rosa_config", node=RosaConfig)
@@ -9,11 +9,10 @@ cs.store(name="rosa_config", node=RosaConfig)
 CONFIG_PATH = "../conf"
 CONFIG_NAME = "config"
 
+
 @hydra.main(config_path=CONFIG_PATH, config_name=CONFIG_NAME, version_base=None)
 def main(config: RosaConfig) -> None:
-    import os
-    print("Working directory : {}".format(os.getcwd()))
-    train(config)
+    preprocess(config)
 
 
 if __name__ == "__main__":

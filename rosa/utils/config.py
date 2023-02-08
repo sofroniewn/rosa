@@ -4,10 +4,38 @@ from typing import Optional
 
 
 @dataclass
+class EmbeddingPathsConfig:
+    gene_intervals: str
+    embeddings: str
+
+
+@dataclass
 class PathConfig:
     adata: str
+    base: str
+    dataset: str
+    preprocessed: str
     chkpt_dir: str
     chkpt: Optional[str]
+    gene_embeddings: EmbeddingPathsConfig
+
+
+@dataclass
+class PreProcessingConfig:
+    bulk_data: None
+    splits: None
+
+
+dataclass
+class BulkDataConfig:
+    sample_col: str
+    label_col: str
+
+
+dataclass
+class SplitsConfig:
+    seed: int
+    train_fraction: float
 
 
 @dataclass
@@ -120,5 +148,6 @@ class ModuleConfig:
 @dataclass
 class RosaConfig:
     paths: PathConfig
+    preprocessing: PreProcessingConfig
     data_module: DataModuleConfig
     module: ModuleConfig

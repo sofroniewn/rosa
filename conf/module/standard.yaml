@@ -2,4 +2,4 @@ learning_rate: 0.001
 criterion:
   loss_function: mse
 defaults:
-  - model: joint-simple-atten
+  - model: single-expression-head-only

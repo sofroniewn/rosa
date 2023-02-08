@@ -21,6 +21,7 @@ class _SingleDataset(Dataset):
         self,
         expression: torch.Tensor,
         input: torch.Tensor,
+        indices: Optional[torch.Tensor] = None,
     ) -> None:
 
         if not expression.shape[0] == input.shape[0]:
@@ -28,18 +29,31 @@ class _SingleDataset(Dataset):
                 f"Number of expression and input values must match, got {expression.shape[0]} and {input.shape[0]}"
             )
 
+        if indices is None:
+            indices = torch.arange(expression.shape[0])
+
+        if indices.max() >= expression.shape[0]:
+            raise ValueError(
+                f"Max index {indices.max()} too long for {expression.shape[0]} samples"
+            )
+
+        if indices.min() < 0:
+            raise ValueError(f"Min index {indices.min()} less than zero")
+
         self.expression = expression
+        self.indices = indices.long()
         self.expression_dim = self.expression.shape[1]
         self.input = input
         self.input_dim = self.input.shape[1]
 
     def __len__(self) -> int:
-        return self.expression.shape[0]
+        return len(self.indices)
 
     def __getitem__(self, idx: int) -> Tuple[Tensor, Tensor]:
+        actual_idx = self.indices[idx]
         return (
-            self.input[idx],
-            self.expression[idx],
+            self.input[actual_idx],
+            self.expression[actual_idx],
         )
 
     def _postprocess(self, results: List[Tensor]) -> torch.Tensor:
@@ -53,6 +67,7 @@ class _JointDataset(Dataset):
         self,
         expression: torch.Tensor,
         input: Tuple[torch.Tensor, torch.Tensor],
+        indices: Tuple[Optional[torch.Tensor], Optional[torch.Tensor]] = (None, None),
     ) -> None:
 
         if not expression.shape[0] == input[0].shape[0]:
@@ -65,8 +80,36 @@ class _JointDataset(Dataset):
                 f"Number of expression and second input values must match, got {expression.shape[1]} and {input[1].shape[0]}"
             )
 
+        if indices[0] is None:
+            indices = (torch.arange(expression.shape[0]), indices[1])
+
+        if indices[1] is None:
+            indices = (indices[0], torch.arange(expression.shape[1]))
+
+        assert indices[0] is not None and indices[1] is not None
+
+        if indices[0].max() >= expression.shape[0]:
+            raise ValueError(
+                f"Max index {indices[0].max()} too long for {expression.shape[0]} samples"
+            )
+
+        if indices[1].max() >= expression.shape[1]:
+            raise ValueError(
+                f"Max index {indices[1].max()} too long for {expression.shape[1]} samples"
+            )
+
+        if indices[0].min() < 0:
+            raise ValueError(f"Min index {indices[0].min()} less than zero")
+
+        if indices[1].min() < 0:
+            raise ValueError(f"Min index {indices[1].min()} less than zero")
+
         self.expression = expression
         self.expression_dim = 1
+        self.indices = (
+            indices[0].long(),
+            indices[1].long(),
+        )
         self.input = input
         self.input_dim = (
             self.input[0].shape[1],
@@ -74,18 +117,23 @@ class _JointDataset(Dataset):
         )
 
     def __len__(self) -> int:
-        return self.expression.shape[0] * self.expression.shape[1]
+        return len(self.indices[0]) * len(self.indices[1])
 
     def __getitem__(self, idx: int) -> Tuple[Tuple[Tensor, Tensor], Tensor]:
         idx_0, idx_1 = tuple(
-            int(_idx) for _idx in np.unravel_index(idx, self.expression.shape)
+            int(_idx)
+            for _idx in np.unravel_index(
+                idx, (len(self.indices[0]), len(self.indices[1]))
+            )
         )
+        actual_idx0 = self.indices[0][idx_0]
+        actual_idx1 = self.indices[1][idx_1]
         return (
             (
-                self.input[0][idx_0],
-                self.input[1][idx_1],
+                self.input[0][actual_idx0],
+                self.input[1][actual_idx1],
             ),
-            self.expression[idx_0, idx_1],
+            self.expression[actual_idx0, actual_idx1],
         )
 
     def _postprocess(self, results: List[Tensor]) -> torch.Tensor:
@@ -98,6 +146,7 @@ class RosaObsDataset(_SingleDataset):
         adata: AnnData,
         *,
         obs_input: str,
+        obs_indices: Optional[torch.Tensor] = None,
         expression_layer: Optional[str] = None,
         expression_transform_config: Optional[ExpressionTransformConfig] = None,
     ) -> None:
@@ -110,7 +159,7 @@ class RosaObsDataset(_SingleDataset):
         raw_input = adata.obsm[obs_input]
         input = input_transform(raw_input)
 
-        super().__init__(expression, input)
+        super().__init__(expression, input, indices=obs_indices)
 
     def predict(
         self, results: List[Tensor], prediction_layer: str = "prediction"
@@ -124,6 +173,7 @@ class RosaVarDataset(_SingleDataset):
         adata: AnnData,
         *,
         var_input: str,
+        var_indices: Optional[torch.Tensor] = None,
         expression_layer: Optional[str] = None,
         expression_transform_config: Optional[ExpressionTransformConfig] = None,
     ) -> None:
@@ -136,7 +186,7 @@ class RosaVarDataset(_SingleDataset):
         raw_input = adata.varm[var_input]
         input = input_transform(raw_input)
 
-        super().__init__(expression.T, input)
+        super().__init__(expression.T, input, indices=var_indices)
 
     def predict(
         self, results: List[Tensor], prediction_layer: str = "prediction"
@@ -151,6 +201,8 @@ class RosaJointDataset(_JointDataset):
         *,
         var_input: str,
         obs_input: str,
+        obs_indices: Optional[torch.Tensor] = None,
+        var_indices: Optional[torch.Tensor] = None,
         expression_layer: Optional[str] = None,
         expression_transform_config: Optional[ExpressionTransformConfig] = None,
     ) -> None:
@@ -167,7 +219,7 @@ class RosaJointDataset(_JointDataset):
             input_transform(raw_var_input),
         )
 
-        super().__init__(expression, input)
+        super().__init__(expression, input, indices=(obs_indices, var_indices))
 
     def predict(
         self, results: List[Tensor], prediction_layer: str = "prediction"
@@ -189,6 +241,8 @@ class RosaObsVarDataset(RosaJointDataset):
         *,
         var_input: str,
         obs_input: str,
+        obs_indices: Optional[torch.Tensor] = None,
+        var_indices: Optional[torch.Tensor] = None,
         expression_layer: Optional[str] = None,
         expression_transform_config: Optional[ExpressionTransformConfig] = None,
         n_var_sample: Optional[int] = None,
@@ -197,21 +251,24 @@ class RosaObsVarDataset(RosaJointDataset):
             adata,
             obs_input=obs_input,
             var_input=var_input,
+            obs_indices=obs_indices,
+            var_indices=var_indices,
             expression_layer=expression_layer,
             expression_transform_config=expression_transform_config,
         )
-        self.var_indices = torch.arange(self.expression.shape[1]).float()
+        self.var_subindices = torch.arange(len(self.indices[1])).float()
         self.n_var_sample = n_var_sample
 
     def __len__(self) -> int:
-        return self.expression.shape[0]
+        return len(self.indices[0])
 
     def __getitem__(self, idx: int) -> Tuple[Tuple[Tensor, Tensor], Tensor]:
-        obs_input = self.input[0][idx]
-        expression = self.expression[idx]
-        var_input = self.input[1]
+        actual_idx = self.indices[0][idx]
+        obs_input = self.input[0][actual_idx]
+        expression = self.expression[actual_idx][self.indices[1]]
+        var_input = self.input[1][self.indices[1]]
         if self.n_var_sample is not None:
-            sample_var = torch.multinomial(self.var_indices, self.n_var_sample)
+            sample_var = torch.multinomial(self.var_subindices, self.n_var_sample)
             expression = expression[sample_var]
             var_input = var_input[sample_var]
         full_input = (
@@ -239,13 +296,19 @@ def _prepare_expression(
 
 
 def rosa_dataset_factory(
-    adata: AnnData, data_config: DataConfig
+    adata: AnnData,
+    data_config: DataConfig,
+    *,
+    obs_indices: Optional[torch.Tensor] = None,
+    var_indices: Optional[torch.Tensor] = None,
 ) -> Union[RosaObsDataset, RosaVarDataset, RosaJointDataset, RosaObsVarDataset]:
     if data_config.obs_input is not None and data_config.var_input is not None:
         return RosaObsVarDataset(
             adata,
             var_input=data_config.var_input,
             obs_input=data_config.obs_input,
+            obs_indices=obs_indices,
+            var_indices=var_indices,
             expression_layer=data_config.expression_layer,
             expression_transform_config=data_config.expression_transform,
         )
@@ -254,6 +317,7 @@ def rosa_dataset_factory(
         return RosaVarDataset(
             adata,
             var_input=data_config.var_input,
+            var_indices=var_indices,
             expression_layer=data_config.expression_layer,
             expression_transform_config=data_config.expression_transform,
         )
@@ -262,6 +326,7 @@ def rosa_dataset_factory(
         return RosaObsDataset(
             adata,
             obs_input=data_config.obs_input,
+            obs_indices=obs_indices,
             expression_layer=data_config.expression_layer,
             expression_transform_config=data_config.expression_transform,
         )
