@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from typing import Optional, Union
+from pathlib import Path
 
 import numpy as np
 from anndata import read_h5ad  # type: ignore
@@ -14,7 +15,7 @@ from .datasets import (
 
 
 class RosaDataModule(LightningDataModule):
-    def __init__(self, adata_path: str, config: DataModuleConfig):
+    def __init__(self, adata_path: Path, config: DataModuleConfig):
         super().__init__()
 
         self.adata_path = adata_path

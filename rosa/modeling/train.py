@@ -2,14 +2,16 @@ from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.loggers import TensorBoardLogger
 
-from ..data import RosaDataModule
+from ..data import RosaDataModule, create_io_paths
 from ..utils import RosaConfig
 from .modules import RosaLightningModule
 
 
 def train(config: RosaConfig) -> None:
+    _, output_path = create_io_paths(config.paths)
+
     rdm = RosaDataModule(
-        config.paths.adata,
+        output_path,
         config=config.data_module,
     )
     rdm.setup()

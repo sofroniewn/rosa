@@ -10,7 +10,7 @@ CONFIG_PATH = "../conf"
 CONFIG_NAME = "config"
 
 
-@hydra.main(config_path=CONFIG_PATH, config_name=CONFIG_NAME, version_base=None)
+@hydra.main(config_path=CONFIG_PATH, config_name=CONFIG_NAME)
 def main(config: RosaConfig) -> None:
     preprocess(config)
 

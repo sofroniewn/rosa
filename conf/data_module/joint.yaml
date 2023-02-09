@@ -1,6 +1,6 @@
 data:
   expression_layer: null
-  var_input: embedding
+  var_input: embedding_pca
   obs_input: embedding
   expression_transform: null
 batch_size: 8

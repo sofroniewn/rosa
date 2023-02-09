@@ -2,17 +2,20 @@ hydra:
   run:
       dir: /Users/nsofroniew/Documents/data/rosa/outputs/${now:%Y-%m-%d}/${now:%H-%M-%S}
 paths:
-  adata: /Users/nsofroniew/Documents/data/multiomics/cell_census/tabula_sapiens_by_features_with_embeds_new_norm.h5ad
   base: /Users/nsofroniew/Documents/data/multiomics/cell_census
   dataset: tabula_sapiens
-  preprocessed: by_cell_type # pbulk or by_cell_type
+  preprocessed: pbulk # pbulk or by_cell_type
   chkpt: null
-  gene_embeddings:
-    gene_intervals: /Users/nsofroniew/Documents/data/multiomics/enformer/Homo_sapiens.GRCh38.genes.bed
-    embeddings: /Users/nsofroniew/Documents/data/multiomics/enformer/Homo_sapiens.GRCh38.genes.enformer_tss_embedding.zarr
 preprocessing:
+  gene_embeddings:
+    path: /Users/nsofroniew/Documents/data/multiomics/enformer/Homo_sapiens.GRCh38.genes.enformer_tss_embedding.zarr
+    gene_intervals: /Users/nsofroniew/Documents/data/multiomics/enformer/Homo_sapiens.GRCh38.genes.bed
+    pcs: 256
+  cell_embeddings:
+    pcs: 256
+    key: train
   bulk_data:
-    sample_col: dataset_id # Use donor_id or dataset_id
+    sample_col: donor_id # Use donor_id or dataset_id
     label_col: cell_type
   filter:
     coding_only: True
@@ -20,6 +23,12 @@ preprocessing:
     seed: 42
     fraction: 0.7
     key: train
+  markers:
+    differential_expression: ${paths.base}/${paths.dataset}_${paths.preprocessed}_scvi_de.csv
+module:
+  learning_rate: 0.001
+  criterion:
+    loss_function: mse
 defaults:
-  - data_module: gene
-  - module: standard
+  - data_module: joint
+  - module/model: joint-bilinear2

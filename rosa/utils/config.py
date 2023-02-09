@@ -4,9 +4,16 @@ from typing import Optional
 
 
 @dataclass
-class EmbeddingPathsConfig:
+class GeneEmbeddingsConfig:
+    path: str
     gene_intervals: str
-    embeddings: str
+    pcs: int
+
+
+@dataclass
+class CellEmbeddingsConfig:
+    pcs: int
+    key: str
 
 
 @dataclass
@@ -14,10 +21,9 @@ class PathConfig:
     adata: str
     base: str
     dataset: str
-    preprocessed: str
+    preprocessed: Optional[str]
     chkpt_dir: str
     chkpt: Optional[str]
-    gene_embeddings: EmbeddingPathsConfig
 
 
 @dataclass
@@ -37,12 +43,19 @@ class BulkDataConfig:
 class FilterConfig:
     coding_only: bool
 
+@dataclass
+class MarkerGeneConfig:
+    differential_expression: Optional[str]
+
 
 @dataclass
 class PreProcessingConfig:
+    gene_embeddings: GeneEmbeddingsConfig
+    cell_embeddings: Optional[CellEmbeddingsConfig]
     bulk_data: Optional[BulkDataConfig]
     split: Optional[SplitConfig]
     filter: Optional[FilterConfig]
+    markers: Optional[MarkerGeneConfig]
 
 
 @dataclass

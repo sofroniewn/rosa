@@ -1,14 +1,11 @@
 dropout_prob: 0
 layer_norm: False
 layer_norm_1: True
-input_embed:
-  layer_norm: True
-  dropout_prob: 0.5
-  embedding_dim: 3072
+input_embed: null
 input_embed_1: null
 join_embeds:
-  method: attention
-  out_dim: 3072
+  method: bilinear
+  out_dim: 16
 feed_forward: null
 expression_head:
   projection: True

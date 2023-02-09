@@ -1,4 +1,4 @@
-from typing import Dict, Optional
+from typing import Dict, Optional, List
 from pathlib import Path
 
 import polars as pl
@@ -13,7 +13,7 @@ from tqdm import tqdm
 from omegaconf import OmegaConf
 
 
-from ..utils.config import BulkDataConfig, PathConfig, PreProcessingConfig, RosaConfig, EmbeddingPathsConfig, SplitConfig, FilterConfig
+from ..utils.config import BulkDataConfig, PathConfig, PreProcessingConfig, RosaConfig, CellEmbeddingsConfig, GeneEmbeddingsConfig, SplitConfig, FilterConfig
 
 
 def _add_gene_embeddings(
@@ -70,16 +70,20 @@ def _add_gene_embeddings(
     return adata
 
 
-def add_gene_embeddings(adata: ad.AnnData, config: EmbeddingPathsConfig) -> ad.AnnData:
+def add_gene_embeddings(adata: ad.AnnData, config: GeneEmbeddingsConfig) -> ad.AnnData:
     # Read gene intervals
     seqs = pl.read_csv(config.gene_intervals, sep="\t", has_header=False).to_pandas()
     # Set index to ensmbl id which is in column 5
     seqs = seqs.set_index("column_5")
 
     # Load gene embeddings
-    embeds = np.asarray(zarr.open(config.embeddings))
+    embeds = np.asarray(zarr.open(config.path))
 
     adata = _add_gene_embeddings(adata, seqs, embeds)
+
+    # calculate gene embedding pcas
+    if config.pcs is not None:
+        adata = calculate_gene_embeddings_pca(adata, config.pcs)
     return adata
 
 
@@ -87,7 +91,6 @@ def add_indicators(
     adata: ad.AnnData,
     config: SplitConfig,
 ) -> ad.AnnData:
-
     np.random.seed(config.seed)
     adata.var[config.key] = np.random.rand(adata.n_vars) <= config.fraction
     adata.obs[config.key] = np.random.rand(adata.n_obs) <= config.fraction
@@ -146,20 +149,25 @@ def filter_cells_and_genes(adata: ad.AnnData, config: FilterConfig) -> ad.AnnDat
     return adata
 
 
-def calculate_cell_embeddings_pca(adata: ad.AnnData, n_pcs: int = 512) -> ad.AnnData:
+def add_cell_embeddings(adata: ad.AnnData, config: CellEmbeddingsConfig) -> ad.AnnData:
     # consider only training cells and genes
-    train_cells = adata.obs["train"]
-    train_genes = adata.var["train"]
-    adata_train = adata[train_cells, train_genes]
+    if config.key is not None:
+        train_cells = adata.obs[config.key]
+        train_genes = adata.var[config.key]
+        adata_split = adata[train_cells, train_genes]
+    else:
+        adata_split = adata
 
     # fit pca on training data
     pca = PCA()
-    pca.fit(adata_train.X)
+    pca.fit(adata_split.X)
 
     # compute scores for all cells
     pca_expression = pca.transform(adata[:, train_genes].X)
 
     # add cell embeddings to obsm
+    n_pcs = config.pcs
+    n_pcs = min(n_pcs, pca_expression.shape[1] - 1)
     adata.obsm["embedding"] = pca_expression[:, :n_pcs]
     adata.uns["obs_embedding_pca"] = {
         "explained_variance": np.cumsum(pca.explained_variance_ratio_)[n_pcs]
@@ -186,14 +194,14 @@ def calculate_gene_embeddings_pca(adata: ad.AnnData, n_pcs: int = 512) -> ad.Ann
     return adata
 
 
-def add_dendrogram_and_hvgs(adata: ad.AnnData, groupby:str) -> ad.AnnData:
+def add_dendrogram_and_hvgs(adata: ad.AnnData) -> ad.AnnData:
     # Add highly variable genes
     if "log1p" in adata.uns:
         adata.uns["log1p"]["base"] = None  # needed to deal with error?
     sc.pp.highly_variable_genes(adata, min_mean=0.0125, max_mean=3, min_disp=0.5)
 
     # Add dendrogram
-    sc.tl.dendrogram(adata, groupby=groupby, use_rep="X")
+    sc.tl.dendrogram(adata, groupby='label', use_rep="X")
     return adata
 
 
@@ -217,23 +225,28 @@ def average_expression_per_feature(adata: ad.AnnData, feature_name: str) -> ad.A
     return ad.AnnData(X=features_by_var, obs=obs, var=adata.var)
 
 
-def add_marker_genes(
+def add_de_marker_genes(
     adata: ad.AnnData, differential_expression: pd.DataFrame
 ) -> ad.AnnData:
     # Add differentially expressed genes in test dataset
     test_genes = np.logical_not(adata.var["train"])
     marker_genes_dict = {}  # type: Dict[str, str]
+    drop_cells = [] # type: List[str]
     cats = adata.obs.label.cat.categories
     for i, c in enumerate(cats):
         cid = "{} vs Rest".format(c)
         label_df = differential_expression.loc[
             differential_expression.comparison == cid
         ]
-        label_df = label_df[label_df["lfc_mean"] > 0]
-        label_df = label_df[label_df["bayes_factor"] > 3]
-        label_df = label_df[label_df["non_zeros_proportion1"] > 0.1]
 
-        # Restrict to genes that are in test dataset
+        if (label_df["lfc_mean"] > 0).sum() > 0:
+            label_df = label_df[label_df["lfc_mean"] > 0]
+        if (label_df["bayes_factor"] > 3).sum() > 0:
+            label_df = label_df[label_df["bayes_factor"] > 3]
+        if (label_df["non_zeros_proportion1"] > 0.1).sum() > 0:
+            label_df = label_df[label_df["non_zeros_proportion1"] > 0.1]
+
+        # Restrict to genes that are in test dataset if possible
         label_df = label_df[label_df.index.isin(adata[:, test_genes].var.index)]
 
         # Restrict to genes that havn't already been used if possible
@@ -242,7 +255,16 @@ def add_marker_genes(
             label_df = label_df[~label_df.index.isin(used_genes)]
 
         # Get best marker gene
-        marker_genes_dict[c] = label_df["lfc_mean"].idxmax()
+        if len(label_df) > 0:
+            marker_genes_dict[c] = label_df["lfc_mean"].idxmax()
+        else:
+            drop_cells.append(c)
+
+    # Drop cells with no markers
+    if len(drop_cells) > 0:
+        print(f'Dropping {len(drop_cells)} cells')
+        drop_inds = adata.obs['label'].isin(drop_cells)
+        adata = adata[np.logical_not(drop_inds)]
 
     # Add marker genes to adata
     adata.obs["marker_gene"] = adata.obs["label"].map(marker_genes_dict)
@@ -326,12 +348,17 @@ def bulk_data(adata: ad.AnnData, config: BulkDataConfig) -> ad.AnnData:
     )
     padata.var = adata.var.loc[padata.var.index]
     padata.obs['is_primary_data'] = padata.obs['is_primary_data'].astype(str)
+    padata.obs['label'] = padata.obs[config.label_col].astype("category")
+    padata.obs['sample'] = padata.obs[config.sample_col].astype("category")
     return padata
 
 
 def create_io_paths(config: PathConfig) -> tuple[Path, Path]:
     input_path = Path(config.base) / (config.dataset + '.h5ad')
-    output_path = Path(config.base) / (config.dataset + '_' + config.preprocessed + '.h5ad')
+    if config.preprocessed is not None:
+        output_path = Path(config.base) / (config.dataset + '_' + config.preprocessed + '.h5ad')
+    else:
+        output_path = input_path
     return (input_path, output_path)
 
 
@@ -339,6 +366,9 @@ def preprocessing_pipeline(adata: ad.AnnData, config: PreProcessingConfig) -> ad
     # If necessary perform bulking
     if config.bulk_data is not None:
         adata = bulk_data(adata, config.bulk_data)
+
+    # Add gene embeddings
+    adata = add_gene_embeddings(adata, config.gene_embeddings)
 
     # Add gene biotype information
     adata = add_gene_biotype(adata)
@@ -351,25 +381,16 @@ def preprocessing_pipeline(adata: ad.AnnData, config: PreProcessingConfig) -> ad
     if config.split is not None:
         adata = add_indicators(adata, config.split)
 
-
+    ################################################################
     # Normalize expression
     adata = normalize_expression(adata)
     # Bin expression
     adata = bin_expression(adata, n_bins=128)
+    ################################################################
 
     # Calculate and add cell embeddings using only traning data
-    adata = calculate_cell_embeddings_pca(adata, 64)
-
-    # calculate gene embedding pcas
-    adata = calculate_gene_embeddings_pca(adata, 128)
-
-    # Add dendrogram, hvgs, and marker genes
-    # adata = add_marker_genes(adata, config.markers)
-
-    TABULA_SAPIENS_BY_CELL_TYPE_SCVI_DE = "/Users/nsofroniew/Documents/data/multiomics/cell_census_old/tabula_sapiens_by_features_scvi_model_new_norm_de.csv"
-    adata = add_dendrogram_and_hvgs(adata, groupby='cell_type')
-    de_df = pd.read_csv(TABULA_SAPIENS_BY_CELL_TYPE_SCVI_DE, index_col=0)
-    adata = add_marker_genes(adata, differential_expression=de_df)
+    if config.cell_embeddings is not None:
+        adata = add_cell_embeddings(adata, config.cell_embeddings)
 
     # Attach preprocessing metadata
     adata.uns['preprocessing'] = OmegaConf.to_container(config)
@@ -394,12 +415,10 @@ def preprocess(config: RosaConfig) -> None:
     adata = ad.read_h5ad(input_path)
     print(adata)
 
-    # Add gene embeddings
-    adata = add_gene_embeddings(adata, config.paths.gene_embeddings)
-
     # Preprocess
     adata = preprocessing_pipeline(adata, config.preprocessing)
     print(adata)
 
     # Save anndata object
     adata.write_h5ad(output_path)
+    print(f'Data saved to {output_path}')
