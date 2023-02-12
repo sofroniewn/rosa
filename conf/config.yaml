@@ -4,7 +4,7 @@ hydra:
 paths:
   base: /Users/nsofroniew/Documents/data/multiomics/cell_census
   dataset: tabula_sapiens
-  preprocessed: pbulk # pbulk or by_cell_type
+  preprocessed: _sample_${preprocessing.bulk_data.sample_col}__label_${preprocessing.bulk_data.label_col}
   chkpt: null
 preprocessing:
   gene_embeddings:
@@ -15,7 +15,7 @@ preprocessing:
     pcs: 256
     key: train
   bulk_data:
-    sample_col: donor_id # Use donor_id or dataset_id
+    sample_col: dataset_id # Use donor_id or dataset_id
     label_col: cell_type
   filter:
     coding_only: True
@@ -24,11 +24,11 @@ preprocessing:
     fraction: 0.7
     key: train
   markers:
-    differential_expression: ${paths.base}/${paths.dataset}_${paths.preprocessed}_scvi_de.csv
+    differential_expression: ${paths.base}/${paths.dataset}_${paths.preprocessed}__scvi_de.csv
 module:
   learning_rate: 0.001
   criterion:
     loss_function: mse
 defaults:
-  - data_module: joint
-  - module/model: joint-bilinear2
+  - data_module: gene
+  - module/model: single-expression-head-only

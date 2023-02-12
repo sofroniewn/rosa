@@ -239,12 +239,9 @@ def add_de_marker_genes(
             differential_expression.comparison == cid
         ]
 
-        if (label_df["lfc_mean"] > 0).sum() > 0:
-            label_df = label_df[label_df["lfc_mean"] > 0]
-        if (label_df["bayes_factor"] > 3).sum() > 0:
-            label_df = label_df[label_df["bayes_factor"] > 3]
-        if (label_df["non_zeros_proportion1"] > 0.1).sum() > 0:
-            label_df = label_df[label_df["non_zeros_proportion1"] > 0.1]
+        label_df = label_df[label_df["lfc_mean"] > 0]
+        label_df = label_df[label_df["bayes_factor"] > 3]
+        label_df = label_df[label_df["non_zeros_proportion1"] > 0.1]
 
         # Restrict to genes that are in test dataset if possible
         label_df = label_df[label_df.index.isin(adata[:, test_genes].var.index)]
@@ -365,23 +362,29 @@ def create_io_paths(config: PathConfig) -> tuple[Path, Path]:
 def preprocessing_pipeline(adata: ad.AnnData, config: PreProcessingConfig) -> ad.AnnData:
     # If necessary perform bulking
     if config.bulk_data is not None:
+        print('Bulk data')
         adata = bulk_data(adata, config.bulk_data)
 
     # Add gene embeddings
+    print('Add gene embeddings')
     adata = add_gene_embeddings(adata, config.gene_embeddings)
 
     # Add gene biotype information
+    print('Add gene biotypes')
     adata = add_gene_biotype(adata)
 
     # Filter cells and genes
     if config.filter is not None:
+        print('Filter cells and genes')
         adata = filter_cells_and_genes(adata, config.filter)
 
     # Add training indicators
     if config.split is not None:
+        print('Add splits')
         adata = add_indicators(adata, config.split)
 
     ################################################################
+    print('Normalize expression')
     # Normalize expression
     adata = normalize_expression(adata)
     # Bin expression
@@ -390,9 +393,11 @@ def preprocessing_pipeline(adata: ad.AnnData, config: PreProcessingConfig) -> ad
 
     # Calculate and add cell embeddings using only traning data
     if config.cell_embeddings is not None:
+        print('Add cell embeddings')
         adata = add_cell_embeddings(adata, config.cell_embeddings)
 
     # Attach preprocessing metadata
+    print('Add preprocessing config')
     adata.uns['preprocessing'] = OmegaConf.to_container(config)
 
     return adata

@@ -1,16 +1,19 @@
-dropout_prob: 0
+dropout_prob: 0.5
 layer_norm: False
 layer_norm_1: True
-input_embed: null
+input_embed:
+  layer_norm: False
+  dropout_prob: 0.5
+  embedding_dim: 64
 input_embed_1:
   layer_norm: False
   dropout_prob: 0.5
-  embedding_dim: 128
+  embedding_dim: 64
 join_embeds:
   method: bilinear
-  out_dim: 64
+  out_dim: 16
 feed_forward:
-  hidden_dim: 256
+  hidden_dim: 32
   dropout_prob: 0.5
 expression_head:
   projection: True
