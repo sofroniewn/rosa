@@ -1,6 +1,7 @@
 import cell_census
 from rosa.data.preprocessing import average_expression_per_feature
 from pathlib import Path
+import scanpy as sc 
 
 
 BASE = "/Users/nsofroniew/Documents/data/multiomics/cell_census"
@@ -22,4 +23,5 @@ adata = cell_census.get_anndata(
 print(adata)
 
 # Save anndata object
+print('Save adata')
 adata.write(path)

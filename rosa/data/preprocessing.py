@@ -225,46 +225,22 @@ def average_expression_per_feature(adata: ad.AnnData, feature_name: str) -> ad.A
     return ad.AnnData(X=features_by_var, obs=obs, var=adata.var)
 
 
-def add_de_marker_genes(
-    adata: ad.AnnData, differential_expression: pd.DataFrame
-) -> ad.AnnData:
-    # Add differentially expressed genes in test dataset
-    test_genes = np.logical_not(adata.var["train"])
-    marker_genes_dict = {}  # type: Dict[str, str]
-    drop_cells = [] # type: List[str]
-    cats = adata.obs.label.cat.categories
-    for i, c in enumerate(cats):
-        cid = "{} vs Rest".format(c)
-        label_df = differential_expression.loc[
-            differential_expression.comparison == cid
-        ]
-
-        label_df = label_df[label_df["lfc_mean"] > 0]
-        label_df = label_df[label_df["bayes_factor"] > 3]
-        label_df = label_df[label_df["non_zeros_proportion1"] > 0.1]
-
-        # Restrict to genes that are in test dataset if possible
-        label_df = label_df[label_df.index.isin(adata[:, test_genes].var.index)]
-
-        # Restrict to genes that havn't already been used if possible
-        used_genes = set(marker_genes_dict.values())
-        if len(used_genes.union(set(label_df.index))) > len(label_df.index):
-            label_df = label_df[~label_df.index.isin(used_genes)]
-
-        # Get best marker gene
-        if len(label_df) > 0:
-            marker_genes_dict[c] = label_df["lfc_mean"].idxmax()
-        else:
-            drop_cells.append(c)
-
-    # Drop cells with no markers
-    if len(drop_cells) > 0:
-        print(f'Dropping {len(drop_cells)} cells')
-        drop_inds = adata.obs['label'].isin(drop_cells)
-        adata = adata[np.logical_not(drop_inds)]
-
-    # Add marker genes to adata
-    adata.obs["marker_gene"] = adata.obs["label"].map(marker_genes_dict)
+def add_rank_genes_groups_markers(adata: ad.AnnData) -> ad.AnnData:
+    markers = {} # type: Dict[str, str]
+    test_genes = adata.var[np.logical_and(np.logical_not(adata.var["train"]), adata.X.mean(axis=0)>0.1)].index
+    for c in adata.uns['rank_genes_groups']['names'].dtype.names:
+        genes = adata.uns['rank_genes_groups']['names'][c]
+        logfoldchanges = adata.uns['rank_genes_groups']['logfoldchanges'][c]
+        scores = adata.uns['rank_genes_groups']['scores'][c]
+        thresh = np.quantile(scores, .90)
+        keep = np.logical_not(np.isin(genes, list(markers.values())))
+        keep = np.logical_and(keep, scores > thresh)
+        keep = np.logical_and(keep, np.isin(genes, test_genes))
+        genes = genes[keep]
+        logfoldchanges = logfoldchanges[keep]
+        idx = logfoldchanges.argmax()
+        markers[c] = genes[idx]
+    adata.obs['marker_gene'] = adata.obs['cell_type'].map(markers)
     adata.obs["marker_feature_name"] = adata.var.loc[adata.obs["marker_gene"]][
         "feature_name"
     ].values
@@ -347,6 +323,7 @@ def bulk_data(adata: ad.AnnData, config: BulkDataConfig) -> ad.AnnData:
     padata.obs['is_primary_data'] = padata.obs['is_primary_data'].astype(str)
     padata.obs['label'] = padata.obs[config.label_col].astype("category")
     padata.obs['sample'] = padata.obs[config.sample_col].astype("category")
+    padata.uns = adata.uns
     return padata
 
 
@@ -359,11 +336,23 @@ def create_io_paths(config: PathConfig) -> tuple[Path, Path]:
     return (input_path, output_path)
 
 
-def preprocessing_pipeline(adata: ad.AnnData, config: PreProcessingConfig) -> ad.AnnData:
+def rank_genes_groups(adata: ad.AnnData, adata_sc: ad.AnnData) -> ad.AnnData:
+    sc.pp.normalize_total(adata_sc, target_sum=1e5) # Add param to config
+    sc.pp.log1p(adata_sc)
+    keep_indices = np.isin(adata_sc.var.index,  adata.var[np.logical_not(adata.var['train'])].index)    
+    adata_sc = adata_sc[:, keep_indices]
+    sc.tl.rank_genes_groups(adata_sc, 'cell_type', method='t-test')  # Add param to config
+    adata.uns['rank_genes_groups'] = adata_sc.uns['rank_genes_groups']
+    return adata
+
+
+def preprocessing_pipeline(adata_sc: ad.AnnData, config: PreProcessingConfig) -> ad.AnnData:
     # If necessary perform bulking
     if config.bulk_data is not None:
         print('Bulk data')
-        adata = bulk_data(adata, config.bulk_data)
+        adata = bulk_data(adata_sc, config.bulk_data)
+    else:
+        adata = adata_sc
 
     # Add gene embeddings
     print('Add gene embeddings')
@@ -395,6 +384,13 @@ def preprocessing_pipeline(adata: ad.AnnData, config: PreProcessingConfig) -> ad
     if config.cell_embeddings is not None:
         print('Add cell embeddings')
         adata = add_cell_embeddings(adata, config.cell_embeddings)
+
+    # Add marker genes
+    print('Add rank genes groups')
+    adata = rank_genes_groups(adata, adata_sc)
+    print('Add hvgs and marker genes')
+    adata = add_dendrogram_and_hvgs(adata)
+    adata = add_rank_genes_groups_markers(adata)
 
     # Attach preprocessing metadata
     print('Add preprocessing config')

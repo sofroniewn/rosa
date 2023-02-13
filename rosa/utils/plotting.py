@@ -4,7 +4,7 @@ import scanpy as sc
 
 
 def plot_marker_gene_heatmap(adata, marker_genes, output_layer: str = "prediction"):
-    max_expression_val = 4
+    max_expression_val = 6
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 12), gridspec_kw={"wspace": 0})
     sc.pl.matrixplot(
         adata,
@@ -57,7 +57,7 @@ def plot_expression_and_correlation(
         X_meas = adata.layers[target_layer]
     X_pred = adata.layers[output_layer]
 
-    max_expression_val = 4
+    max_expression_val = 6
     # Subplot with expression histograms
     bins = np.linspace(0, max_expression_val, 200)
     axs[0, 0].hist(X_meas.flatten(), bins=bins, density=True)

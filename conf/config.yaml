@@ -28,7 +28,7 @@ preprocessing:
 module:
   learning_rate: 0.001
   criterion:
-    loss_function: mse
+    loss_function: mae
 defaults:
-  - data_module: gene
+  - data_module: cell
   - module/model: single-expression-head-only
