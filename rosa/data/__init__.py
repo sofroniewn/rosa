@@ -1,2 +1,2 @@
 from .datamodules import RosaDataModule
-from .preprocessing import preprocess, create_io_paths
+from .preprocessing import create_io_paths, preprocess

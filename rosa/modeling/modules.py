@@ -1,5 +1,6 @@
 from typing import Union
 
+import torch
 import torch.optim as optim
 from pytorch_lightning import LightningModule
 
@@ -55,3 +56,16 @@ class RosaLightningModule(LightningModule):
 
     def configure_optimizers(self):
         return optim.AdamW(self.model.parameters(), lr=self.learning_rate)
+
+    def explain_iter(self, dataloader, explainer):
+        for x, y in iter(dataloader):            
+            if isinstance(x, list):
+                x = tuple(x_ind.reshape(-1, x_ind.shape[-1]).requires_grad_() for x_ind in x)
+                attribution = explainer.attribute(x)
+                yield tuple(a.reshape(y.shape[0], y.shape[1], -1) for a in attribution)
+            else:
+                attribution = []
+                for target in range(y.shape[-1]):
+                    x.requires_grad_()
+                    attribution.append(explainer.attribute(x, target=target))
+                yield torch.stack(attribution, dim=1)

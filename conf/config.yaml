@@ -17,18 +17,27 @@ preprocessing:
   bulk_data:
     sample_col: dataset_id # Use donor_id or dataset_id
     label_col: cell_type
+    min_cells: 50
   filter:
     coding_only: True
   split:
     seed: 42
     fraction: 0.7
     key: train
+  expression_transform:
+    total_counts: 100_000
+    log1p: True
+    n_bins: 128
   markers:
-    differential_expression: ${paths.base}/${paths.dataset}_${paths.preprocessed}__scvi_de.csv
+    label_col: ${preprocessing.bulk_data.label_col}
+    total_counts: ${preprocessing.expression_transform.total_counts}
+    log1p: ${preprocessing.expression_transform.log1p}
+    mean_expression_threshold: 0.1
+    score_quantile: 0.9
 module:
   learning_rate: 0.001
   criterion:
     loss_function: mae
 defaults:
-  - data_module: cell
-  - module/model: single-expression-head-only
+  - data_module: joint
+  - module/model: joint-dot3

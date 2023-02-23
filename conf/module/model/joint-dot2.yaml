@@ -1,20 +1,19 @@
-dropout_prob: 0.5
-layer_norm: False
+dropout_prob: 0
+layer_norm: True
 layer_norm_1: True
 input_embed:
-  layer_norm: False
+  layer_norm: True
   dropout_prob: 0.5
-  embedding_dim: 32
+  embedding_dim: 94
 input_embed_1:
-  layer_norm: False
+  layer_norm: True
   dropout_prob: 0.5
-  embedding_dim: 32
+  embedding_dim: 94
 join_embeds:
-  method: bilinear
-  out_dim: 32
+  method: dot
 feed_forward: null
 expression_head:
-  projection: True
+  projection: False
   activation: softplus
   likelihood: null
   library_size: null

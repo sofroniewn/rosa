@@ -258,6 +258,10 @@ class RosaObsVarDataset(RosaJointDataset):
         )
         self.var_subindices = torch.arange(len(self.indices[1])).float()
         self.n_var_sample = n_var_sample
+        # if self.n_var_sample is None:
+        #     self.expression_dim = len(self.indices[1])
+        # else:
+        #     self.expression_dim = self.n_var_sample
 
     def __len__(self) -> int:
         return len(self.indices[0])
@@ -301,6 +305,7 @@ def rosa_dataset_factory(
     *,
     obs_indices: Optional[torch.Tensor] = None,
     var_indices: Optional[torch.Tensor] = None,
+    n_var_sample: Optional[int] = None,
 ) -> Union[RosaObsDataset, RosaVarDataset, RosaJointDataset, RosaObsVarDataset]:
     if data_config.obs_input is not None and data_config.var_input is not None:
         return RosaObsVarDataset(
@@ -311,6 +316,7 @@ def rosa_dataset_factory(
             var_indices=var_indices,
             expression_layer=data_config.expression_layer,
             expression_transform_config=data_config.expression_transform,
+            n_var_sample=n_var_sample
         )
 
     if data_config.obs_input is None and data_config.var_input is not None:

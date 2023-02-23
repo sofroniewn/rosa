@@ -1,8 +1,8 @@
 import warnings
-from .predict import predict
-from .train import train
 
 from pytorch_lightning.utilities.rank_zero import LightningDeprecationWarning
 
+from .predict import predict
+from .train import train
 
-warnings.simplefilter(action='ignore', category=LightningDeprecationWarning)
+warnings.simplefilter(action="ignore", category=LightningDeprecationWarning)

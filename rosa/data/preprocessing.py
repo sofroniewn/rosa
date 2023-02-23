@@ -1,19 +1,29 @@
-from typing import Dict, Optional, List
 from pathlib import Path
+from typing import Dict, List, Optional
 
-import polars as pl
-import zarr
 import anndata as ad
 import decoupler as dc
 import numpy as np
 import pandas as pd
+import polars as pl
 import scanpy as sc
+import zarr
+from omegaconf import OmegaConf
 from sklearn.decomposition import PCA
 from tqdm import tqdm
-from omegaconf import OmegaConf
 
-
-from ..utils.config import BulkDataConfig, PathConfig, PreProcessingConfig, RosaConfig, CellEmbeddingsConfig, GeneEmbeddingsConfig, SplitConfig, FilterConfig
+from ..utils.config import (
+    BulkDataConfig,
+    CellEmbeddingsConfig,
+    ExpressionTransformConfig,
+    FilterConfig,
+    GeneEmbeddingsConfig,
+    MarkerGeneConfig,
+    PathConfig,
+    PreProcessingConfig,
+    RosaConfig,
+    SplitConfig,
+)
 
 
 def _add_gene_embeddings(
@@ -115,7 +125,7 @@ def add_gene_biotype(adata: ad.AnnData) -> ad.AnnData:
 
 
 def normalize_expression(
-    adata: ad.AnnData, log1p: bool = True, target_sum: Optional[int] = 10_000
+    adata: ad.AnnData, log1p: bool = True, target_sum: Optional[int] = 100_000
 ) -> ad.AnnData:
     # Store counts in seperate layer
     adata.layers["counts"] = adata.X.copy()
@@ -201,7 +211,7 @@ def add_dendrogram_and_hvgs(adata: ad.AnnData) -> ad.AnnData:
     sc.pp.highly_variable_genes(adata, min_mean=0.0125, max_mean=3, min_disp=0.5)
 
     # Add dendrogram
-    sc.tl.dendrogram(adata, groupby='label', use_rep="X")
+    sc.tl.dendrogram(adata, groupby="label", use_rep="X")
     return adata
 
 
@@ -225,14 +235,21 @@ def average_expression_per_feature(adata: ad.AnnData, feature_name: str) -> ad.A
     return ad.AnnData(X=features_by_var, obs=obs, var=adata.var)
 
 
-def add_rank_genes_groups_markers(adata: ad.AnnData) -> ad.AnnData:
-    markers = {} # type: Dict[str, str]
-    test_genes = adata.var[np.logical_and(np.logical_not(adata.var["train"]), adata.X.mean(axis=0)>0.1)].index
-    for c in adata.uns['rank_genes_groups']['names'].dtype.names:
-        genes = adata.uns['rank_genes_groups']['names'][c]
-        logfoldchanges = adata.uns['rank_genes_groups']['logfoldchanges'][c]
-        scores = adata.uns['rank_genes_groups']['scores'][c]
-        thresh = np.quantile(scores, .90)
+def add_rank_genes_groups_markers(
+    adata: ad.AnnData, config: MarkerGeneConfig
+) -> ad.AnnData:
+    markers = {}  # type: Dict[str, str]
+    expression_thresh = config.mean_expression_threshold
+    test_genes = adata.var[
+        np.logical_and(
+            np.logical_not(adata.var["train"]), adata.X.mean(axis=0) > expression_thresh
+        )
+    ].index
+    for c in adata.uns["rank_genes_groups"]["names"].dtype.names:
+        genes = adata.uns["rank_genes_groups"]["names"][c]
+        logfoldchanges = adata.uns["rank_genes_groups"]["logfoldchanges"][c]
+        scores = adata.uns["rank_genes_groups"]["scores"][c]
+        thresh = np.quantile(scores, config.score_quantile)
         keep = np.logical_not(np.isin(genes, list(markers.values())))
         keep = np.logical_and(keep, scores > thresh)
         keep = np.logical_and(keep, np.isin(genes, test_genes))
@@ -240,7 +257,7 @@ def add_rank_genes_groups_markers(adata: ad.AnnData) -> ad.AnnData:
         logfoldchanges = logfoldchanges[keep]
         idx = logfoldchanges.argmax()
         markers[c] = genes[idx]
-    adata.obs['marker_gene'] = adata.obs['cell_type'].map(markers)
+    adata.obs["marker_gene"] = adata.obs[config.label_col].map(markers)
     adata.obs["marker_feature_name"] = adata.var.loc[adata.obs["marker_gene"]][
         "feature_name"
     ].values
@@ -309,110 +326,135 @@ def reconstruct_expression(
 
 def bulk_data(adata: ad.AnnData, config: BulkDataConfig) -> ad.AnnData:
     # Note that genes with no samples will be dropped
+    # padata = average_expression_per_feature(adata, config.label_col)
     padata = dc.get_pseudobulk(
         adata,
         sample_col=config.sample_col,
         groups_col=config.label_col,
         layer=None,
         min_prop=0,
-        min_cells=0,
+        min_cells=config.min_cells,
         min_counts=0,
         min_smpls=0,
     )
     padata.var = adata.var.loc[padata.var.index]
-    padata.obs['is_primary_data'] = padata.obs['is_primary_data'].astype(str)
-    padata.obs['label'] = padata.obs[config.label_col].astype("category")
-    padata.obs['sample'] = padata.obs[config.sample_col].astype("category")
+    padata.obs["is_primary_data"] = padata.obs["is_primary_data"].astype(str)
+    padata.obs["label"] = padata.obs[config.label_col].astype("category")
+    padata.obs["sample"] = padata.obs[config.sample_col].astype("category")
     padata.uns = adata.uns
     return padata
 
 
 def create_io_paths(config: PathConfig) -> tuple[Path, Path]:
-    input_path = Path(config.base) / (config.dataset + '.h5ad')
+    input_path = Path(config.base) / (config.dataset + ".h5ad")
     if config.preprocessed is not None:
-        output_path = Path(config.base) / (config.dataset + '_' + config.preprocessed + '.h5ad')
+        output_path = Path(config.base) / (
+            config.dataset + "_" + config.preprocessed + ".h5ad"
+        )
     else:
         output_path = input_path
     return (input_path, output_path)
 
 
-def rank_genes_groups(adata: ad.AnnData, adata_sc: ad.AnnData) -> ad.AnnData:
-    sc.pp.normalize_total(adata_sc, target_sum=1e5) # Add param to config
-    sc.pp.log1p(adata_sc)
-    keep_indices = np.isin(adata_sc.var.index,  adata.var[np.logical_not(adata.var['train'])].index)    
+def rank_genes_groups(
+    adata: ad.AnnData, adata_sc: ad.AnnData, config: MarkerGeneConfig
+) -> ad.AnnData:
+    if config.total_counts:
+        sc.pp.normalize_total(adata_sc, target_sum=config.total_counts)
+    if config.log1p:
+        sc.pp.log1p(adata_sc)
+    keep_indices = np.isin(
+        adata_sc.var.index, adata.var[np.logical_not(adata.var["train"])].index
+    )
     adata_sc = adata_sc[:, keep_indices]
-    sc.tl.rank_genes_groups(adata_sc, 'cell_type', method='t-test')  # Add param to config
-    adata.uns['rank_genes_groups'] = adata_sc.uns['rank_genes_groups']
+    sc.tl.rank_genes_groups(adata_sc, config.label_col, method="t-test")
+    adata.uns["rank_genes_groups"] = adata_sc.uns["rank_genes_groups"]
     return adata
 
 
-def preprocessing_pipeline(adata_sc: ad.AnnData, config: PreProcessingConfig) -> ad.AnnData:
+def transform_expression(
+    adata: ad.AnnData, config: ExpressionTransformConfig
+) -> ad.AnnData:
+    # Normalize expression
+    if config.log1p is not None and config.total_counts is not None:
+        adata = normalize_expression(
+            adata, target_sum=config.total_counts, log1p=config.log1p
+        )
+    # Bin expression
+    if config.n_bins is not None:
+        adata = bin_expression(adata, n_bins=config.n_bins)
+    return adata
+
+
+def preprocessing_pipeline(
+    adata_sc: ad.AnnData, config: PreProcessingConfig
+) -> ad.AnnData:
     # If necessary perform bulking
     if config.bulk_data is not None:
-        print('Bulk data')
+        print("Bulk data")
         adata = bulk_data(adata_sc, config.bulk_data)
     else:
         adata = adata_sc
 
     # Add gene embeddings
-    print('Add gene embeddings')
+    print("Add gene embeddings")
     adata = add_gene_embeddings(adata, config.gene_embeddings)
 
     # Add gene biotype information
-    print('Add gene biotypes')
+    print("Add gene biotypes")
     adata = add_gene_biotype(adata)
 
     # Filter cells and genes
     if config.filter is not None:
-        print('Filter cells and genes')
+        print("Filter cells and genes")
         adata = filter_cells_and_genes(adata, config.filter)
 
     # Add training indicators
     if config.split is not None:
-        print('Add splits')
+        print("Add splits")
         adata = add_indicators(adata, config.split)
 
-    ################################################################
-    print('Normalize expression')
-    # Normalize expression
-    adata = normalize_expression(adata)
-    # Bin expression
-    adata = bin_expression(adata, n_bins=128)
-    ################################################################
+    # Normalize and bin expression
+    if config.expression_transform is not None:
+        print("Normalize expression")
+        adata = transform_expression(adata, config.expression_transform)
 
     # Calculate and add cell embeddings using only traning data
     if config.cell_embeddings is not None:
-        print('Add cell embeddings')
+        print("Add cell embeddings")
         adata = add_cell_embeddings(adata, config.cell_embeddings)
 
     # Add marker genes
-    print('Add rank genes groups')
-    adata = rank_genes_groups(adata, adata_sc)
-    print('Add hvgs and marker genes')
-    adata = add_dendrogram_and_hvgs(adata)
-    adata = add_rank_genes_groups_markers(adata)
+    if config.markers is not None:
+        print("Add rank genes groups")
+        adata = rank_genes_groups(adata, adata_sc, config.markers)
+        print("Add hvgs and marker genes")
+        adata = add_dendrogram_and_hvgs(adata)
+        adata = add_rank_genes_groups_markers(adata, config.markers)
 
     # Attach preprocessing metadata
-    print('Add preprocessing config')
-    adata.uns['preprocessing'] = OmegaConf.to_container(config)
+    print("Add preprocessing config")
+    adata.uns["preprocessing"] = OmegaConf.to_container(config)
 
     return adata
 
 
 def preprocess(config: RosaConfig) -> None:
     input_path, output_path = create_io_paths(config.paths)
-    
+
     if output_path.exists():
-        print(f'Output path {output_path} exists, loading data')
+        print(f"Output path {output_path} exists, loading data")
 
         adata = ad.read_h5ad(output_path)
         print(adata)
 
-        if adata.uns.get('preprocessing', None) == OmegaConf.to_container(config.preprocessing):
-            print(f'Data is preprocessed')
+        if adata.uns.get("preprocessing", None) == OmegaConf.to_container(
+            config.preprocessing
+        ):
+            print(f"Data is preprocessed")
             return
 
-    print(f'Trying to load input data at {input_path}')
+    print(f"Trying to load input data at {input_path}")
     adata = ad.read_h5ad(input_path)
     print(adata)
 
@@ -422,4 +464,4 @@ def preprocess(config: RosaConfig) -> None:
 
     # Save anndata object
     adata.write_h5ad(output_path)
-    print(f'Data saved to {output_path}')
+    print(f"Data saved to {output_path}")

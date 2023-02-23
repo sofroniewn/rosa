@@ -37,25 +37,21 @@ class SplitConfig:
 class BulkDataConfig:
     sample_col: str
     label_col: str
+    min_cells: int
 
 
 @dataclass
 class FilterConfig:
     coding_only: bool
 
+
 @dataclass
 class MarkerGeneConfig:
-    differential_expression: Optional[str]
-
-
-@dataclass
-class PreProcessingConfig:
-    gene_embeddings: GeneEmbeddingsConfig
-    cell_embeddings: Optional[CellEmbeddingsConfig]
-    bulk_data: Optional[BulkDataConfig]
-    split: Optional[SplitConfig]
-    filter: Optional[FilterConfig]
-    markers: Optional[MarkerGeneConfig]
+    label_col: str
+    log1p: bool
+    total_counts: int
+    mean_expression_threshold: float
+    score_quantile: float
 
 
 @dataclass
@@ -69,6 +65,17 @@ class ExpressionTransformConfig:
 
 
 @dataclass
+class PreProcessingConfig:
+    gene_embeddings: GeneEmbeddingsConfig
+    cell_embeddings: Optional[CellEmbeddingsConfig]
+    bulk_data: Optional[BulkDataConfig]
+    split: Optional[SplitConfig]
+    filter: Optional[FilterConfig]
+    markers: Optional[MarkerGeneConfig]
+    expression_transform: Optional[ExpressionTransformConfig]
+
+
+@dataclass
 class DataConfig:
     expression_layer: Optional[
         str
@@ -76,6 +83,7 @@ class DataConfig:
     var_input: Optional[str] = None  # If null no var input used
     obs_input: Optional[str] = None  # If null no obs input used
     expression_transform: Optional[ExpressionTransformConfig] = None
+    n_var_sample: Optional[int] = None
 
 
 #     n_obs_item: Optional[int] # If null return all obs, otherwise item will contain requested number of obs

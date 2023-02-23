@@ -1,17 +1,15 @@
 from dataclasses import dataclass
-from typing import Optional, Union
 from pathlib import Path
+from typing import Optional, Union
 
 import numpy as np
+import torch
 from anndata import read_h5ad  # type: ignore
 from pytorch_lightning import LightningDataModule
 from torch.utils.data import DataLoader
-import torch
 
 from ..utils.config import DataModuleConfig
-from .datasets import (
-    rosa_dataset_factory,
-)
+from .datasets import rosa_dataset_factory
 
 
 class RosaDataModule(LightningDataModule):
@@ -42,6 +40,7 @@ class RosaDataModule(LightningDataModule):
             data_config=self.data_config,
             obs_indices=obs_indices_train,
             var_indices=var_indices_train,
+            n_var_sample=self.data_config.n_var_sample
         )
 
         obs_indices_val = torch.Tensor(np.where(np.logical_not(adata.obs["train"]))[0])
@@ -78,10 +77,12 @@ class RosaDataModule(LightningDataModule):
             num_workers=self.num_workers,
         )
 
-    def predict_dataloader(self):
+    def predict_dataloader(self, batch_size=None):
+        if batch_size is None:
+            batch_size = self.batch_size
         return DataLoader(
             self.predict_dataset,
-            batch_size=self.batch_size,
+            batch_size=batch_size,
             shuffle=False,
             num_workers=self.num_workers,
         )
