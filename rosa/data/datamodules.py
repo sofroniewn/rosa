@@ -61,18 +61,22 @@ class RosaDataModule(LightningDataModule):
             num_workers=self.num_workers,
         )
 
-    def val_dataloader(self):
+    def val_dataloader(self, batch_size=None):
+        if batch_size is None:
+            batch_size = self.batch_size
         return DataLoader(
             self.val_dataset,
-            batch_size=self.batch_size,
+            batch_size=batch_size,
             shuffle=False,
             num_workers=self.num_workers,
         )
 
-    def test_dataloader(self):
+    def test_dataloader(self, batch_size=None):
+        if batch_size is None:
+            batch_size = self.batch_size
         return DataLoader(
             self.test_dataset,
-            batch_size=self.batch_size,
+            batch_size=batch_size,
             shuffle=False,
             num_workers=self.num_workers,
         )

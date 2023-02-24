@@ -4,11 +4,13 @@ from typing import List, Optional, Tuple, Union
 
 import numpy as np
 import torch
+import torch.nn as nn
 from anndata import AnnData  # type: ignore
 from torch import Tensor
 from torch.utils.data import Dataset
 
 from ..utils.config import DataConfig, ExpressionTransformConfig
+from .sequences import AdataFastaInterval
 from .transforms import ExpressionTransform, ToTensor
 
 warnings.simplefilter(action="ignore", category=FutureWarning)
@@ -156,8 +158,7 @@ class RosaObsDataset(_SingleDataset):
         )
 
         input_transform = ToTensor()
-        raw_input = adata.obsm[obs_input]
-        input = input_transform(raw_input)
+        input = _prepare_obs(adata, obs_input, input_transform)
 
         super().__init__(expression, input, indices=obs_indices)
 
@@ -183,8 +184,7 @@ class RosaVarDataset(_SingleDataset):
         )
 
         input_transform = ToTensor()
-        raw_input = adata.varm[var_input]
-        input = input_transform(raw_input)
+        input = _prepare_var(adata, var_input, input_transform)
 
         super().__init__(expression.T, input, indices=var_indices)
 
@@ -212,11 +212,9 @@ class RosaJointDataset(_JointDataset):
         )
 
         input_transform = ToTensor()
-        raw_var_input = adata.varm[var_input]
-        raw_obs_input = adata.obsm[obs_input]
         input = (
-            input_transform(raw_obs_input),
-            input_transform(raw_var_input),
+            _prepare_obs(adata, obs_input, input_transform),
+            _prepare_var(adata, var_input, input_transform),
         )
 
         super().__init__(expression, input, indices=(obs_indices, var_indices))
@@ -297,6 +295,30 @@ def _prepare_expression(
         expression_transform_config = ExpressionTransformConfig()
     expression_transform = ExpressionTransform(expression_transform_config)
     return expression_transform(raw_expression)
+
+
+def _prepare_obs(adata: AnnData, obs_input:str, input_transform: nn.Module) -> torch.Tensor:
+    if obs_input in adata.obsm.keys():
+        return input_transform(adata.obsm[obs_input])
+    elif obs_input in adata.layers.keys():
+        return input_transform(adata.layers[obs_input])
+    elif obs_input == 'X':
+        return input_transform(adata.X)
+    else:
+        raise ValueError(f'Unrecognized obs input {obs_input}')
+
+
+def _prepare_var(adata: AnnData, var_input:str, input_transform: nn.Module) -> torch.Tensor:
+    if var_input in adata.varm.keys():
+        return input_transform(adata.varm[var_input])
+    elif var_input in adata.layers.keys():
+        return input_transform(adata.layers[var_input].T)
+    elif var_input == 'X':
+        return input_transform(adata.X.T)
+    elif var_input[-3:] == '.fa':
+        return AdataFastaInterval(adata, var_input)  # type: ignore
+    else:
+        raise ValueError(f'Unrecognized var input {var_input}')
 
 
 def rosa_dataset_factory(

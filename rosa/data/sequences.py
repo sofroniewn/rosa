@@ -1,6 +1,10 @@
 import math
 from dataclasses import dataclass
+from typing import Tuple, Union
 
+import torch
+from enformer_pytorch import FastaInterval
+import anndata as ad
 import pandas as pd
 from tqdm import tqdm
 
@@ -111,3 +115,31 @@ def get_all_intervals(genome, sequence_length):
         intervals_all, columns=["chromosome", "start", "end", "name", "score", "strand"]
     )
     return df
+
+
+class AdataFastaInterval:
+    def __init__(self, adata: ad.AnnData, fasta_path:str):
+        self.adata = adata
+        self.fasta = FastaInterval(
+            fasta_file = fasta_path,
+            context_length = None,
+            return_seq_indices = False,
+            shift_augs = None,
+            rc_aug = False
+        )
+
+    def __getitem__(self, ind:Union[int, torch.Tensor]) -> torch.Tensor:
+        if isinstance(ind, torch.Tensor):
+            return torch.stack([self[int(i)] for i in ind], dim=0)
+        chr_name, start, end = self.adata.var.iloc[int(ind)][['column_1', 'column_2', 'column_3']]
+        return self.fasta(chr_name, start, end, return_augs=False)
+
+    def __len__(self) -> int:
+        return self.adata.n_vars
+
+    @property
+    def shape(self) -> Tuple[int, ...]:
+        if len(self) > 0:
+            return (len(self),) + self[0].shape
+        else:
+            return (0, 0, 0)

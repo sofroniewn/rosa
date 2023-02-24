@@ -57,7 +57,7 @@ class RosaLightningModule(LightningModule):
     def configure_optimizers(self):
         return optim.AdamW(self.model.parameters(), lr=self.learning_rate)
 
-    def explain_iter(self, dataloader, explainer):
+    def explain_iter(self, dataloader, explainer, indices=None):
         for x, y in iter(dataloader):            
             if isinstance(x, list):
                 x = tuple(x_ind.reshape(-1, x_ind.shape[-1]).requires_grad_() for x_ind in x)
@@ -65,7 +65,9 @@ class RosaLightningModule(LightningModule):
                 yield tuple(a.reshape(y.shape[0], y.shape[1], -1) for a in attribution)
             else:
                 attribution = []
-                for target in range(y.shape[-1]):
+                if indices is None:
+                    indices = range(y.shape[-1])
+                for target in indices:
                     x.requires_grad_()
-                    attribution.append(explainer.attribute(x, target=target))
+                    attribution.append(explainer.attribute(x, target=int(target)))
                 yield torch.stack(attribution, dim=1)
