@@ -1,7 +1,8 @@
 from typing import Callable
 
 import torch
-import torchmetrics.functional as F
+import torch.nn.functional as F
+import torchmetrics.functional as tm_F
 
 from ....utils.config import CriterionConfig, LossFunctions  # type: ignore
 
@@ -14,9 +15,11 @@ def mean_log_prob_criterion(
 
 def criterion_factory(config: CriterionConfig) -> Callable:
     if config.loss_function == LossFunctions.MSE.name.lower():
-        return F.mean_squared_error
+        return tm_F.mean_squared_error
     if config.loss_function == LossFunctions.MAE.name.lower():
-        return F.mean_absolute_error
+        return tm_F.mean_absolute_error
+    if config.loss_function == LossFunctions.CE.name.lower():
+        return F.cross_entropy
     if config.loss_function == LossFunctions.LOGPROB.name.lower():
         return mean_log_prob_criterion
 

@@ -115,6 +115,7 @@ class ExpressionHeadConfig:
     activation: Optional[ExpressionHeadActivations]
     library_size: Optional[int]
     likelihood: Optional[ExpressionHeadLikelihood]
+    n_bins: Optional[int]
 
 
 @dataclass
@@ -153,6 +154,7 @@ class TransformerConfig:
 
 
 class LossFunctions(Enum):
+    CE = auto()
     MSE = auto()
     MAE = auto()
     LOGPROB = auto()

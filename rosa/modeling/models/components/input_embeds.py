@@ -50,7 +50,7 @@ class MaskedEmbed(nn.Module):
         self.model = nn.Sequential(
             OrderedDict(
                 [
-                    ("embedding", embedding),
+                    ("projection", embedding),
                     ("layer_norm", layer_norm_nn),
                     ("dropout", nn.Dropout(config.dropout_prob)),
                 ]

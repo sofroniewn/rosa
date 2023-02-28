@@ -20,6 +20,7 @@ join_embeds:
   method: add
 expression_head:
   projection: True
-  activation: softplus
+  activation: null
   likelihood: null
   library_size: null
+  n_bins: ${data_module.data.expression_transform.n_bins}

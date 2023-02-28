@@ -37,7 +37,7 @@ preprocessing:
 module:
   learning_rate: 0.001
   criterion:
-    loss_function: mse
+    loss_function: ce
 device: cpu
 defaults:
   - data_module: transformer

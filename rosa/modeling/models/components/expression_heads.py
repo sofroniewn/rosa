@@ -26,18 +26,22 @@ class ProjectionExpressionHead(nn.Module):
         in_dim,
         out_dim,
         config: ExpressionHeadConfig,
-        n_bins: int = 1,
     ):
         super(ProjectionExpressionHead, self).__init__()
-        if n_bins > 1 and config.activation is not None:
+        if config.n_bins is None:
+            self.n_bins = 1
+        else:
+            self.n_bins = config.n_bins
+
+        if self.n_bins > 1 and config.activation is not None:
             raise ValueError(f"An activation should not be used for classification")
 
         if config.projection:
-            projection_nn = nn.Linear(in_dim, out_dim * n_bins)  # type: nn.Module
+            projection_nn = nn.Linear(in_dim, out_dim * self.n_bins)  # type: nn.Module
         else:
-            if in_dim != out_dim * n_bins:
+            if in_dim != out_dim * self.n_bins:
                 raise ValueError(
-                    f"If no projection is used input dim {in_dim} must match output dim {out_dim * n_bins}"
+                    f"If no projection is used input dim {in_dim} must match output dim {out_dim * self.n_bins}"
                 )
             projection_nn = nn.Identity()
 
@@ -60,9 +64,12 @@ class ProjectionExpressionHead(nn.Module):
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return self.model(x).squeeze(-1)
+        output = self.model(x)
+        return output.squeeze(-1)
 
     def sample(self, x: torch.Tensor) -> torch.Tensor:
+        if self.n_bins > 1:
+            return x.argmax(dim=-1)
         return x
 
 
