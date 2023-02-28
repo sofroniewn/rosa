@@ -37,7 +37,8 @@ preprocessing:
 module:
   learning_rate: 0.001
   criterion:
-    loss_function: mae
+    loss_function: mse
+device: cpu
 defaults:
-  - data_module: joint
-  - module/model: joint-dot3
+  - data_module: transformer
+  - module/model: transformer

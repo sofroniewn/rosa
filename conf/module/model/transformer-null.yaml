@@ -1,0 +1,19 @@
+dropout_prob: 0
+layer_norm: null
+layer_norm_1: True
+transformer: null
+input_embed:
+  layer_norm: False
+  dropout_prob: 0
+  embedding_dim: 64
+input_embed_1:
+  layer_norm: False
+  dropout_prob: 0
+  embedding_dim: 64
+join_embeds:
+  method: add
+expression_head:
+  projection: True
+  activation: softplus
+  likelihood: null
+  library_size: null

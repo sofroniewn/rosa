@@ -27,29 +27,44 @@ class RosaDataModule(LightningDataModule):
     def setup(self, stage=None):
         adata = read_h5ad(self.adata_path)
 
+        obs_indices_train = torch.Tensor(np.where(adata.obs["train"])[0])
+        var_indices_train = torch.Tensor(np.where(adata.var["train"])[0])
+        obs_indices_val = torch.Tensor(np.where(np.logical_not(adata.obs["train"]))[0])
+        var_indices_val = torch.Tensor(np.where(np.logical_not(adata.var["train"]))[0])
+
         # create predict dataset with all data
-        self.predict_dataset = rosa_dataset_factory(adata, data_config=self.data_config)
+        if self.data_config.mask is not None:
+            mask = "var_indices"
+            var_indices_predict = var_indices_val
+        else:
+            mask = None
+            var_indices_predict = None
+
+        self.predict_dataset = rosa_dataset_factory(
+            adata,
+            data_config=self.data_config,
+            var_indices=var_indices_predict,
+            mask=mask,
+        )
 
         self.len_input = self.predict_dataset.input_dim
         self.len_target = self.predict_dataset.expression_dim
 
-        obs_indices_train = torch.Tensor(np.where(adata.obs["train"])[0])
-        var_indices_train = torch.Tensor(np.where(adata.var["train"])[0])
         self.train_dataset = rosa_dataset_factory(
             adata,
             data_config=self.data_config,
             obs_indices=obs_indices_train,
             var_indices=var_indices_train,
-            n_var_sample=self.data_config.n_var_sample
+            n_var_sample=self.data_config.n_var_sample,
+            mask=self.data_config.mask,
         )
 
-        obs_indices_val = torch.Tensor(np.where(np.logical_not(adata.obs["train"]))[0])
-        var_indices_val = torch.Tensor(np.where(np.logical_not(adata.var["train"]))[0])
         self.val_dataset = rosa_dataset_factory(
             adata,
             data_config=self.data_config,
             obs_indices=obs_indices_val,
             var_indices=var_indices_val,
+            mask=mask,
         )
         self.test_dataset = self.val_dataset
 

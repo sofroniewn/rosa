@@ -5,8 +5,7 @@ import torch.optim as optim
 from pytorch_lightning import LightningModule
 
 from ..utils.config import ModuleConfig
-from .components import criterion_factory
-from .models import RosaJointModel, RosaSingleModel
+from .models import RosaJointModel, RosaSingleModel, RosaFormerModel, criterion_factory
 
 
 class RosaLightningModule(LightningModule):
@@ -18,11 +17,17 @@ class RosaLightningModule(LightningModule):
     ):
         super(RosaLightningModule, self).__init__()
         if isinstance(in_dim, tuple):
-            self.model = RosaJointModel(
-                in_dim=in_dim,
-                out_dim=out_dim,
-                config=config.model,
-            )  # type: Union[RosaSingleModel, RosaJointModel]
+            if out_dim == 1:
+                self.model = RosaJointModel(
+                    in_dim=in_dim,
+                    out_dim=out_dim,
+                    config=config.model,
+                )  # type: Union[RosaSingleModel, RosaJointModel, RosaFormerModel]
+            else:
+                self.model = RosaFormerModel(
+                    in_dim=in_dim,
+                    config=config.model,
+                )
         else:
             self.model = RosaSingleModel(
                 in_dim=in_dim,
@@ -38,6 +43,10 @@ class RosaLightningModule(LightningModule):
     def training_step(self, batch, _):
         x, y = batch
         y_hat = self(x)
+        if isinstance(self.model, RosaFormerModel):
+            mask = x[0][1]
+            y_hat = y_hat[mask]
+            y = y[mask]
         loss = self.criterion(y_hat, y)
         self.log("train_loss", loss, on_epoch=True, prog_bar=True, logger=True)
         return loss
@@ -45,6 +54,10 @@ class RosaLightningModule(LightningModule):
     def validation_step(self, batch, _):
         x, y = batch
         y_hat = self(x)
+        if isinstance(self.model, RosaFormerModel):
+            mask = x[0][1]
+            y_hat = y_hat[mask]
+            y = y[mask]
         loss = self.criterion(y_hat, y)
         self.log("val_loss", loss, on_epoch=True, prog_bar=True, logger=True)
         return loss
@@ -58,9 +71,11 @@ class RosaLightningModule(LightningModule):
         return optim.AdamW(self.model.parameters(), lr=self.learning_rate)
 
     def explain_iter(self, dataloader, explainer, indices=None):
-        for x, y in iter(dataloader):            
+        for x, y in iter(dataloader):
             if isinstance(x, list):
-                x = tuple(x_ind.reshape(-1, x_ind.shape[-1]).requires_grad_() for x_ind in x)
+                x = tuple(
+                    x_ind.reshape(-1, x_ind.shape[-1]).requires_grad_() for x_ind in x
+                )
                 attribution = explainer.attribute(x)
                 yield tuple(a.reshape(y.shape[0], y.shape[1], -1) for a in attribution)
             else:

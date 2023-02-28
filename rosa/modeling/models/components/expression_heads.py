@@ -9,11 +9,11 @@ from scvi.distributions import (
     ZeroInflatedNegativeBinomial,
 )
 
-from ...utils.config import (
+from ....utils.config import (
     ExpressionHeadActivations,
     ExpressionHeadConfig,
     ExpressionHeadLikelihood,
-)
+)  # type: ignore
 
 
 class ProjectionExpressionHead(nn.Module):

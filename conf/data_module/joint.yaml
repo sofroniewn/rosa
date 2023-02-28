@@ -4,5 +4,6 @@ data:
   obs_input: embedding
   expression_transform: null
   n_var_sample: 10_000
+  mask: null
 batch_size: 32
 num_workers: 0

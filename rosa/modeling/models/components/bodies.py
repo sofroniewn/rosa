@@ -3,7 +3,7 @@ from collections import OrderedDict
 import torch
 import torch.nn as nn
 
-from ...utils.config import FeedForwardConfig
+from ....utils.config import FeedForwardConfig  # type: ignore
 
 
 class FeedForward(nn.Module):

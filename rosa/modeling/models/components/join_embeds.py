@@ -3,7 +3,7 @@ from typing import Tuple, Union
 import torch
 import torch.nn as nn
 
-from ...utils.config import JoinEmbedsConfig, JoinEmbedsMethods
+from ....utils.config import JoinEmbedsConfig, JoinEmbedsMethods  # type: ignore
 
 
 class ParallelEmbed(nn.Module):

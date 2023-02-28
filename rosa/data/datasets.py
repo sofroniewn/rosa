@@ -256,10 +256,6 @@ class RosaObsVarDataset(RosaJointDataset):
         )
         self.var_subindices = torch.arange(len(self.indices[1])).float()
         self.n_var_sample = n_var_sample
-        # if self.n_var_sample is None:
-        #     self.expression_dim = len(self.indices[1])
-        # else:
-        #     self.expression_dim = self.n_var_sample
 
     def __len__(self) -> int:
         return len(self.indices[0])
@@ -280,6 +276,75 @@ class RosaObsVarDataset(RosaJointDataset):
         return full_input, expression
 
 
+class RosaMaskedObsVarDataset(RosaObsVarDataset):
+    """Iterates over cells
+
+    When used with a batch of cell, returns data as ((BxG, BxG), BxGxGE), BxG)
+    where B is number of cells in batch, G is number of genes,
+    GE is length of gene embedding. The first (BxG, BxG) is the input expression,
+    and masking matrix, the BxGxGE are the gene embeddings, and the BxG is
+    the target expression to be predicted.
+    """
+
+    def __init__(
+        self,
+        adata: AnnData,
+        *,
+        var_input: str,
+        mask: Optional[Union[float, str, torch.Tensor]] = None,
+        obs_indices: Optional[torch.Tensor] = None,
+        var_indices: Optional[torch.Tensor] = None,
+        expression_layer: Optional[str] = None,
+        expression_transform_config: Optional[ExpressionTransformConfig] = None,
+        n_var_sample: Optional[int] = None,
+    ) -> None:
+        # If masking is var_indices then use those indices as always True in mask
+        # and allow the indices to be provided by get item method
+        if mask == "var_indices":
+            mask = var_indices
+            var_indices = None
+        super(RosaMaskedObsVarDataset, self).__init__(
+            adata,
+            obs_input="X",
+            var_input=var_input,
+            obs_indices=obs_indices,
+            var_indices=var_indices,
+            expression_layer=expression_layer,
+            expression_transform_config=expression_transform_config,
+            n_var_sample=n_var_sample,
+        )
+        if n_var_sample is not None:
+            self.expression_dim = n_var_sample
+        else:
+            self.expression_dim = len(self.indices[1])
+
+        # Do masking
+        if mask is None:
+            self.mask = torch.zeros(
+                self.input_dim[0], dtype=torch.bool
+            )  # type: Union[float, torch.Tensor]
+        elif isinstance(mask, float):
+            self.mask = mask
+        elif isinstance(mask, torch.Tensor):
+            self.mask = torch.zeros(self.input_dim[0], dtype=torch.bool)
+            self.mask[mask.long()] = True
+        else:
+            raise ValueError("Unrecognized masking type")
+
+    def __getitem__(self, idx: int) -> Tuple[Tuple[Tuple[Tensor, Tensor], Tensor], Tensor]:  # type: ignore
+        (input_obs, input_var), expression = super(
+            RosaMaskedObsVarDataset, self
+        ).__getitem__(idx)
+        # Undo view
+        input_obs = expression
+        # Do masking
+        if not isinstance(self.mask, torch.Tensor):
+            mask = torch.rand(input_obs.shape) <= self.mask
+        else:
+            mask = self.mask
+        return ((input_obs, mask), input_var), expression
+
+
 def _prepare_expression(
     adata: AnnData,
     expression_layer: Optional[str] = None,
@@ -297,28 +362,32 @@ def _prepare_expression(
     return expression_transform(raw_expression)
 
 
-def _prepare_obs(adata: AnnData, obs_input:str, input_transform: nn.Module) -> torch.Tensor:
+def _prepare_obs(
+    adata: AnnData, obs_input: str, input_transform: nn.Module
+) -> torch.Tensor:
     if obs_input in adata.obsm.keys():
         return input_transform(adata.obsm[obs_input])
     elif obs_input in adata.layers.keys():
         return input_transform(adata.layers[obs_input])
-    elif obs_input == 'X':
+    elif obs_input == "X":
         return input_transform(adata.X)
     else:
-        raise ValueError(f'Unrecognized obs input {obs_input}')
+        raise ValueError(f"Unrecognized obs input {obs_input}")
 
 
-def _prepare_var(adata: AnnData, var_input:str, input_transform: nn.Module) -> torch.Tensor:
+def _prepare_var(
+    adata: AnnData, var_input: str, input_transform: nn.Module
+) -> torch.Tensor:
     if var_input in adata.varm.keys():
         return input_transform(adata.varm[var_input])
     elif var_input in adata.layers.keys():
         return input_transform(adata.layers[var_input].T)
-    elif var_input == 'X':
+    elif var_input == "X":
         return input_transform(adata.X.T)
-    elif var_input[-3:] == '.fa':
+    elif var_input[-3:] == ".fa":
         return AdataFastaInterval(adata, var_input)  # type: ignore
     else:
-        raise ValueError(f'Unrecognized var input {var_input}')
+        raise ValueError(f"Unrecognized var input {var_input}")
 
 
 def rosa_dataset_factory(
@@ -328,7 +397,27 @@ def rosa_dataset_factory(
     obs_indices: Optional[torch.Tensor] = None,
     var_indices: Optional[torch.Tensor] = None,
     n_var_sample: Optional[int] = None,
-) -> Union[RosaObsDataset, RosaVarDataset, RosaJointDataset, RosaObsVarDataset]:
+    mask: Optional[Union[float, str]] = None,
+) -> Union[
+    RosaObsDataset,
+    RosaVarDataset,
+    RosaJointDataset,
+    RosaObsVarDataset,
+    RosaMaskedObsVarDataset,
+]:
+    if mask is not None:
+        if data_config.var_input is None:
+            raise ValueError("If using masking, must provide a var_input")
+        return RosaMaskedObsVarDataset(
+            adata,
+            var_input=data_config.var_input,
+            mask=mask,
+            obs_indices=obs_indices,
+            var_indices=var_indices,
+            expression_layer=data_config.expression_layer,
+            expression_transform_config=data_config.expression_transform,
+            n_var_sample=n_var_sample,
+        )
     if data_config.obs_input is not None and data_config.var_input is not None:
         return RosaObsVarDataset(
             adata,
@@ -338,9 +427,8 @@ def rosa_dataset_factory(
             var_indices=var_indices,
             expression_layer=data_config.expression_layer,
             expression_transform_config=data_config.expression_transform,
-            n_var_sample=n_var_sample
+            n_var_sample=n_var_sample,
         )
-
     if data_config.obs_input is None and data_config.var_input is not None:
         return RosaVarDataset(
             adata,

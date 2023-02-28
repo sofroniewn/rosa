@@ -3,5 +3,6 @@ data:
   var_input: embedding
   obs_input: null
   expression_transform: null
+  mask: null
 batch_size: 4096
 num_workers: 0

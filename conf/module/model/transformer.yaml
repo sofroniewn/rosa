@@ -1,0 +1,25 @@
+dropout_prob: 0
+layer_norm: null
+layer_norm_1: True
+n_bins: ${data_module.data.expression_transform.n_bins}
+transformer:
+  dim: 256
+  heads: 4
+  dim_head: 64
+  depth: 2
+  dropout: 0.3
+input_embed:
+  layer_norm: False
+  dropout_prob: 0
+  embedding_dim: ${module.model.transformer.dim}
+input_embed_1:
+  layer_norm: False
+  dropout_prob: 0
+  embedding_dim: ${module.model.transformer.dim}
+join_embeds:
+  method: add
+expression_head:
+  projection: True
+  activation: softplus
+  likelihood: null
+  library_size: null

@@ -25,7 +25,7 @@ def predict(config: RosaConfig, chkpt: str) -> ad.AnnData:
     )
     print(rlm)
 
-    trainer = Trainer()
+    trainer = Trainer(accelerator=config.device)
     predictions = trainer.predict(rlm, rdm)
     rdm.predict_dataset.predict(predictions)
     return rdm.predict_dataset.adata

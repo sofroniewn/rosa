@@ -84,6 +84,7 @@ class DataConfig:
     obs_input: Optional[str] = None  # If null no obs input used
     expression_transform: Optional[ExpressionTransformConfig] = None
     n_var_sample: Optional[int] = None
+    mask: Optional[float] = None
 
 
 #     n_obs_item: Optional[int] # If null return all obs, otherwise item will contain requested number of obs
@@ -143,6 +144,14 @@ class JoinEmbedsConfig:
     out_dim: Optional[int]
 
 
+@dataclass
+class TransformerConfig:
+    dim: int
+    depth: int
+    heads: int
+    dim_head: int
+
+
 class LossFunctions(Enum):
     MSE = auto()
     MAE = auto()
@@ -164,6 +173,8 @@ class ModelConfig:
     join_embeds: Optional[JoinEmbedsConfig]
     input_embed_1: Optional[InputEmbedConfig]
     layer_norm_1: Optional[bool]
+    transformer: Optional[TransformerConfig]
+    n_bins: Optional[int]
 
 
 @dataclass
@@ -179,3 +190,4 @@ class RosaConfig:
     preprocessing: PreProcessingConfig
     data_module: DataModuleConfig
     module: ModuleConfig
+    device: str

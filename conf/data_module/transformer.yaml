@@ -1,0 +1,12 @@
+data:
+  expression_layer: null
+  var_input: embedding
+  obs_input: null
+  expression_transform:
+    total_counts: null
+    log1p: null
+    n_bins: 128
+  n_var_sample: 10000
+  mask: 0.15
+batch_size: 8
+num_workers: 0
