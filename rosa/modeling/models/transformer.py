@@ -1,5 +1,5 @@
 from collections import OrderedDict
-from typing import Tuple, Union
+from typing import Optional, Tuple, Union
 
 import torch
 import torch.nn as nn
@@ -20,9 +20,10 @@ class RosaFormerModel(nn.Module):
         self,
         in_dim: Tuple[int, int],
         config: ModelConfig,
+        var_input: Optional[torch.Tensor] = None
     ):
         super(RosaFormerModel, self).__init__()
-
+        self.var_input = var_input
         # No layer config provided for transformer like models
         assert config.layer_norm is None
 
@@ -120,4 +121,6 @@ class RosaFormerModel(nn.Module):
     def forward(
         self, x: Tuple[torch.Tensor, ...]
     ) -> Union[torch.Tensor, torch.distributions.Distribution]:
+        if self.var_input is not None:
+            x = (x[0], self.var_input[x[1]]) # type: ignore
         return self.main(x)  # type: ignore

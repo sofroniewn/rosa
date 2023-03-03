@@ -331,18 +331,57 @@ class RosaMaskedObsVarDataset(RosaObsVarDataset):
         else:
             raise ValueError("Unrecognized masking type")
 
-    def __getitem__(self, idx: int) -> Tuple[Tuple[Tuple[Tensor, Tensor], Tensor], Tensor]:  # type: ignore
-        (input_obs, input_var), expression = super(
+    def __getitem__(self, idx: int) -> Tuple[Tuple[Tuple[Tensor, Tensor], Tensor], Tensor]: #type: ignore
+        (_, input_var), expression = super(
             RosaMaskedObsVarDataset, self
         ).__getitem__(idx)
-        # Undo view
-        input_obs = expression
         # Do masking
         if not isinstance(self.mask, torch.Tensor):
-            mask = torch.rand(input_obs.shape) <= self.mask
+            mask = torch.rand(expression.shape) <= self.mask
         else:
             mask = self.mask
-        return ((input_obs, mask), input_var), expression
+        return ((expression, mask), input_var), expression
+
+
+class RosaMaskedObsDataset(RosaMaskedObsVarDataset):
+    """Iterates over cells
+
+    When used with a batch of cell, returns data as ((BxG, BxG), BxGxGE), BxG)
+    where B is number of cells in batch, G is number of genes,
+    GE is length of gene embedding. The first (BxG, BxG) is the input expression,
+    and masking matrix, the BxGxGE are the gene embeddings, and the BxG is
+    the target expression to be predicted.
+    """
+
+    def __init__(
+        self,
+        adata: AnnData,
+        *,
+        var_input: str,
+        mask: Optional[Union[float, str, torch.Tensor]] = None,
+        obs_indices: Optional[torch.Tensor] = None,
+        var_indices: Optional[torch.Tensor] = None,
+        expression_layer: Optional[str] = None,
+        expression_transform_config: Optional[ExpressionTransformConfig] = None,
+    ) -> None:
+        super(RosaMaskedObsDataset, self).__init__(
+            adata,
+            var_input=var_input,
+            mask=mask,
+            obs_indices=obs_indices,
+            var_indices=var_indices,
+            expression_layer=expression_layer,
+            expression_transform_config=expression_transform_config,
+        )
+
+    def __getitem__(self, idx: int) -> Tuple[Tuple[Tuple[Tensor, Tensor], Tensor], Tensor]: #type: ignore
+        actual_idx = self.indices[0][idx]
+        expression = self.expression[actual_idx][self.indices[1]]
+        if not isinstance(self.mask, torch.Tensor):
+            mask = torch.rand(expression.shape) <= self.mask
+        else:
+            mask = self.mask
+        return ((expression, mask), self.indices[1]), expression
 
 
 def _prepare_expression(
@@ -408,7 +447,7 @@ def rosa_dataset_factory(
     if mask is not None:
         if data_config.var_input is None:
             raise ValueError("If using masking, must provide a var_input")
-        return RosaMaskedObsVarDataset(
+        return RosaMaskedObsDataset(
             adata,
             var_input=data_config.var_input,
             mask=mask,
@@ -416,7 +455,7 @@ def rosa_dataset_factory(
             var_indices=var_indices,
             expression_layer=data_config.expression_layer,
             expression_transform_config=data_config.expression_transform,
-            n_var_sample=n_var_sample,
+            # n_var_sample=n_var_sample,
         )
     if data_config.obs_input is not None and data_config.var_input is not None:
         return RosaObsVarDataset(

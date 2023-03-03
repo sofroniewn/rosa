@@ -1,4 +1,4 @@
-from typing import Union
+from typing import Optional, Union
 
 import torch
 import torch.optim as optim
@@ -14,6 +14,7 @@ class RosaLightningModule(LightningModule):
         in_dim: int,
         out_dim: int,
         config: ModuleConfig,
+        var_input: Optional[torch.Tensor] = None
     ):
         super(RosaLightningModule, self).__init__()
         if isinstance(in_dim, tuple):
@@ -27,6 +28,7 @@ class RosaLightningModule(LightningModule):
                 self.model = RosaFormerModel(
                     in_dim=in_dim,
                     config=config.model,
+                    var_input=var_input,
                 )
         else:
             self.model = RosaSingleModel(

@@ -20,6 +20,7 @@ def train(config: RosaConfig) -> None:
         in_dim=rdm.len_input,
         out_dim=rdm.len_target,
         config=config.module,
+        var_input=rdm.predict_dataset.input[1]
     )
     print(rlm)
 

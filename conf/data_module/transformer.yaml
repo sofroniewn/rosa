@@ -5,7 +5,7 @@ data:
   expression_transform:
     total_counts: null
     log1p: null
-    n_bins: 128
+    n_bins: null
   n_var_sample: 10000
   mask: 0.15
 batch_size: 8
