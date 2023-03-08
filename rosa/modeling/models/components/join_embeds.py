@@ -25,7 +25,7 @@ class AddEmbeds(nn.Module):
         self.out_dim = in_dim[0]
 
     def forward(self, x: Tuple[torch.Tensor, torch.Tensor]) -> torch.Tensor:
-        return torch.add(*x)
+        return x[0] + x[1]
 
 
 class CatEmbeds(nn.Module):
@@ -57,7 +57,7 @@ class BilinearEmbeds(nn.Module):
         self.out_dim = out_dim
 
     def forward(self, x: Tuple[torch.Tensor, torch.Tensor]) -> torch.Tensor:
-        return self.model(*x)
+        return self.model(x[0], x[1])
 
 
 class AttentionEmbeds(nn.Module):

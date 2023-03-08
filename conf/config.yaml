@@ -1,8 +1,8 @@
 hydra:
   run:
-      dir: /Users/nsofroniew/Documents/data/rosa/outputs/${now:%Y-%m-%d}/${now:%H-%M-%S}
+      dir: /home/ec2-user/outputs/${now:%Y-%m-%d}/${now:%H-%M-%S}
 paths:
-  base: /Users/nsofroniew/Documents/data/multiomics/cell_census
+  base: /home/ec2-user/cell_census
   dataset: tabula_sapiens
   preprocessed: _sample_${preprocessing.bulk_data.sample_col}__label_${preprocessing.bulk_data.label_col}
   chkpt: null
@@ -38,7 +38,7 @@ module:
   learning_rate: 0.001
   criterion:
     loss_function: mse
-device: cpu
+device: cuda
 defaults:
   - data_module: transformer
   - module/model: transformer

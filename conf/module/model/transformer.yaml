@@ -1,6 +1,6 @@
 dropout_prob: 0
 layer_norm: null
-layer_norm_1: True
+layer_norm_1: null
 n_bins: ${data_module.data.expression_transform.n_bins}
 transformer:
   dim: 256

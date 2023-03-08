@@ -1,6 +1,7 @@
 dropout_prob: 0
 layer_norm: null
 layer_norm_1: True
+n_bins: ${data_module.data.expression_transform.n_bins}
 transformer: null
 input_embed:
   layer_norm: False
@@ -17,3 +18,4 @@ expression_head:
   activation: softplus
   likelihood: null
   library_size: null
+  n_bins: ${data_module.data.expression_transform.n_bins}

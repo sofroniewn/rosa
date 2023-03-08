@@ -23,7 +23,7 @@ class RosaFormerModel(nn.Module):
         var_input: Optional[torch.Tensor] = None
     ):
         super(RosaFormerModel, self).__init__()
-        self.var_input = var_input
+        self.var_input = var_input.to('cuda')
         # No layer config provided for transformer like models
         assert config.layer_norm is None
 
