@@ -37,6 +37,7 @@ def train(config: RosaConfig) -> None:
         accelerator=config.device,
         devices=1,
         callbacks=[checkpoint_callback],
+        accumulate_grad_batches=config.data_module.accumulate,
         gradient_clip_val=10,
     )
     trainer.fit(rlm, rdm)

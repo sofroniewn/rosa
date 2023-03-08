@@ -5,4 +5,5 @@ data:
   expression_transform: null
   mask: null
 batch_size: 4096
+accumulate: 1
 num_workers: 0

@@ -6,4 +6,5 @@ data:
   n_var_sample: 10_000
   mask: null
 batch_size: 32
+accumulate: 1
 num_workers: 0

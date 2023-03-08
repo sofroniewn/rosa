@@ -95,6 +95,7 @@ class DataConfig:
 class DataModuleConfig:
     data: DataConfig
     batch_size: int
+    accumulate: int
     num_workers: Optional[int] = 0
 
 
