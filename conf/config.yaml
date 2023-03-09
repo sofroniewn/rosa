@@ -5,7 +5,7 @@ paths:
   base: /home/ec2-user/cell_census
   dataset: tabula_sapiens
   preprocessed: _sample_${preprocessing.bulk_data.sample_col}__label_${preprocessing.bulk_data.label_col}
-  chkpt: null
+  chkpt: /home/ec2-user/outputs/2023-03-09/18-58-53/checkpoints/last.ckpt
 preprocessing:
   gene_embeddings:
     path: /Users/nsofroniew/Documents/data/multiomics/enformer/Homo_sapiens.GRCh38.genes.enformer_tss_embedding.zarr
