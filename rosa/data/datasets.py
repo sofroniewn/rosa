@@ -363,6 +363,7 @@ class RosaMaskedObsDataset(RosaMaskedObsVarDataset):
         var_indices: Optional[torch.Tensor] = None,
         expression_layer: Optional[str] = None,
         expression_transform_config: Optional[ExpressionTransformConfig] = None,
+        n_var_sample: Optional[int] = None,
     ) -> None:
         super(RosaMaskedObsDataset, self).__init__(
             adata,
@@ -381,7 +382,14 @@ class RosaMaskedObsDataset(RosaMaskedObsVarDataset):
             mask = torch.rand(expression.shape) <= self.mask
         else:
             mask = self.mask
-        return ((expression, mask), self.indices[1]), expression
+        if self.n_var_sample is not None:
+            sample_var = torch.multinomial(self.var_subindices, self.n_var_sample)
+            expression = expression[sample_var]
+            mask = mask[sample_var]
+            indices = self.indices[1][sample_var]
+        else:
+            indices = self.indices[1]
+        return ((expression, mask), indices), expression
 
 
 def _prepare_expression(
@@ -455,7 +463,7 @@ def rosa_dataset_factory(
             var_indices=var_indices,
             expression_layer=data_config.expression_layer,
             expression_transform_config=data_config.expression_transform,
-            # n_var_sample=n_var_sample,
+            n_var_sample=n_var_sample,
         )
     if data_config.obs_input is not None and data_config.var_input is not None:
         return RosaObsVarDataset(

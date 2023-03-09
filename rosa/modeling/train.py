@@ -36,6 +36,7 @@ def train(config: RosaConfig) -> None:
         resume_from_checkpoint=config.paths.chkpt,
         accelerator=config.device,
         devices=1,
+        # strategy='ddp',
         callbacks=[checkpoint_callback],
         accumulate_grad_batches=config.data_module.accumulate,
         gradient_clip_val=10,

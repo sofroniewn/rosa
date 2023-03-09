@@ -28,7 +28,6 @@ class RosaLightningModule(LightningModule):
                 self.model = RosaFormerModel(
                     in_dim=in_dim,
                     config=config.model,
-                    var_input=var_input,
                 )
         else:
             self.model = RosaSingleModel(
@@ -36,6 +35,10 @@ class RosaLightningModule(LightningModule):
                 out_dim=out_dim,
                 config=config.model,
             )
+        if var_input is not None:
+            self.register_buffer("var_input", var_input)
+        else:
+            self.var_input = None
         self.learning_rate = config.learning_rate
         self.criterion = criterion_factory(config.criterion)
 
@@ -44,6 +47,8 @@ class RosaLightningModule(LightningModule):
 
     def training_step(self, batch, _):
         x, y = batch
+        if self.var_input is not None:
+            x = (x[0], self.var_input[x[1]])
         y_hat = self(x)
         if isinstance(self.model, RosaFormerModel):
             mask = x[0][1]
@@ -55,6 +60,8 @@ class RosaLightningModule(LightningModule):
 
     def validation_step(self, batch, _):
         x, y = batch
+        if self.var_input is not None:
+            x = (x[0], self.var_input[x[1]])
         y_hat = self(x)
         if isinstance(self.model, RosaFormerModel):
             mask = x[0][1]
@@ -66,6 +73,8 @@ class RosaLightningModule(LightningModule):
 
     def predict_step(self, batch, _):
         x, _ = batch
+        if self.var_input is not None:
+            x = (x[0], self.var_input[x[1]])
         y_hat = self(x)
         return self.model.sample(y_hat)
 
