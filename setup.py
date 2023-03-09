@@ -21,6 +21,8 @@ requirements = [
     "performer-pytorch",
     "enformer-pytorch",
     "tensorboard",
+    "torch-tb-profiler",
+    
 ]
 
 test_requirements = [

@@ -3,8 +3,8 @@ layer_norm: null
 layer_norm_1: null
 n_bins: ${data_module.data.expression_transform.n_bins}
 transformer:
-  dim: 256
-  heads: 4
+  dim: 320
+  heads: 10
   dim_head: 64
   depth: 6
   dropout: 0.3

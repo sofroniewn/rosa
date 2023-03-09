@@ -373,6 +373,7 @@ class RosaMaskedObsDataset(RosaMaskedObsVarDataset):
             var_indices=var_indices,
             expression_layer=expression_layer,
             expression_transform_config=expression_transform_config,
+            n_var_sample=n_var_sample,
         )
 
     def __getitem__(self, idx: int) -> Tuple[Tuple[Tuple[Tensor, Tensor], Tensor], Tensor]: #type: ignore

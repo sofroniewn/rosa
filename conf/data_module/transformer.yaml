@@ -8,6 +8,6 @@ data:
     n_bins: null
   n_var_sample: 10000
   mask: 0.15
-batch_size: 4
-accumulate: 4
-num_workers: 0
+batch_size: 2
+accumulate: 8
+num_workers: 4

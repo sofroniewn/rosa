@@ -28,6 +28,11 @@ def train(config: RosaConfig) -> None:
         save_top_k=2, monitor="val_loss", mode="min", save_last=True
     )
 
+    if config.num_devices > 1:
+        strategy = 'ddp'
+    else:
+        strategy = None
+
     trainer = Trainer(
         max_epochs=500_000,
         check_val_every_n_epoch=1,
@@ -35,8 +40,8 @@ def train(config: RosaConfig) -> None:
         logger=TensorBoardLogger(".", "", ""),
         resume_from_checkpoint=config.paths.chkpt,
         accelerator=config.device,
-        devices=1,
-        # strategy='ddp',
+        devices=config.num_devices,
+        strategy=strategy,
         callbacks=[checkpoint_callback],
         accumulate_grad_batches=config.data_module.accumulate,
         gradient_clip_val=10,

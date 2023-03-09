@@ -26,7 +26,12 @@ def predict(config: RosaConfig, chkpt: str) -> ad.AnnData:
     )
     print(rlm)
 
-    trainer = Trainer(accelerator=config.device)
+    if config.num_devices > 1:
+        strategy = 'ddp'
+    else:
+        strategy = None
+
+    trainer = Trainer(accelerator=config.device, devices=config.num_devices, strategy=strategy)
     predictions = trainer.predict(rlm, rdm)
     rdm.predict_dataset.predict(predictions)
     return rdm.predict_dataset.adata

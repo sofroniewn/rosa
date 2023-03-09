@@ -194,3 +194,4 @@ class RosaConfig:
     data_module: DataModuleConfig
     module: ModuleConfig
     device: str
+    num_devices: int

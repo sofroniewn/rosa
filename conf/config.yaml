@@ -39,6 +39,7 @@ module:
   criterion:
     loss_function: mse
 device: cuda
+num_devices: 4
 defaults:
   - data_module: transformer
   - module/model: transformer
