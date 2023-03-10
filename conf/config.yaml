@@ -1,11 +1,11 @@
 hydra:
   run:
-      dir: /home/ec2-user/outputs/${now:%Y-%m-%d}/${now:%H-%M-%S}
+      dir: /home/ec2-user/outputs/${now:%Y-%m-%d}/${now:%H-%M-%S} # /home/ec2-user/ or /Users/nsofroniew/Documents/data/rosa/
 paths:
-  base: /home/ec2-user/cell_census
+  base: /home/ec2-user/cell_census # /home/ec2-user/ or /Users/nsofroniew/Documents/data/multiomics/
   dataset: tabula_sapiens
   preprocessed: _sample_${preprocessing.bulk_data.sample_col}__label_${preprocessing.bulk_data.label_col}
-  chkpt: /home/ec2-user/outputs/2023-03-09/18-58-53/checkpoints/last.ckpt
+  chkpt: null
 preprocessing:
   gene_embeddings:
     path: /Users/nsofroniew/Documents/data/multiomics/enformer/Homo_sapiens.GRCh38.genes.enformer_tss_embedding.zarr
@@ -38,8 +38,8 @@ module:
   learning_rate: 0.001
   criterion:
     loss_function: mse
-device: cuda
-num_devices: 4
+device: cuda # cuda or cpu
+num_devices: 8 # 8 or 1
 defaults:
   - data_module: transformer
   - module/model: transformer

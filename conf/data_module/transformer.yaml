@@ -10,4 +10,4 @@ data:
   mask: 0.15
 batch_size: 2
 accumulate: 8
-num_workers: 4
+num_workers: 8 # 8 or 0
