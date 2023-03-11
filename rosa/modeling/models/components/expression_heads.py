@@ -1,5 +1,5 @@
 from collections import OrderedDict
-from typing import Union
+from typing import Tuple, Union
 
 import torch
 import torch.nn as nn
@@ -67,10 +67,11 @@ class ProjectionExpressionHead(nn.Module):
         output = self.model(x)
         return output.squeeze(-1)
 
-    def sample(self, x: torch.Tensor) -> torch.Tensor:
+    def sample(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         if self.n_bins > 1:
-            return x.argmax(dim=-1)
-        return x
+            confidence, prediction = nn.functional.softmax(x, dim=-1).max(dim=-1)
+            return prediction, confidence
+        return x, torch.ones_like(x)
 
 
 class ZeroInflatedNegativeBinomialExpressionHead(nn.Module):
@@ -108,8 +109,10 @@ class ZeroInflatedNegativeBinomialExpressionHead(nn.Module):
             scale=px_scale,
         )
 
-    def sample(self, x: torch.distributions.Distribution) -> torch.Tensor:
-        return x.mean
+    def sample(
+        self, x: torch.distributions.Distribution
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        return x.mean, torch.ones_like(x.mean)
 
 
 class NegativeBinomialExpressionHead(nn.Module):
@@ -144,8 +147,10 @@ class NegativeBinomialExpressionHead(nn.Module):
             scale=px_scale,
         )
 
-    def sample(self, x: torch.distributions.Distribution) -> torch.Tensor:
-        return x.mean
+    def sample(
+        self, x: torch.distributions.Distribution
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        return x.mean, torch.ones_like(x.mean)
 
 
 class NegativeBinomialMixtureExpressionHead(nn.Module):
@@ -193,8 +198,10 @@ class NegativeBinomialMixtureExpressionHead(nn.Module):
         nbm.theta2 = px_r_2  # hack to fix scvi-tools bug
         return nbm
 
-    def sample(self, x: torch.distributions.Distribution) -> torch.Tensor:
-        return x.mean
+    def sample(
+        self, x: torch.distributions.Distribution
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        return x.mean, torch.ones_like(x.mean)
 
 
 ExpressionHead = Union[

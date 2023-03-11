@@ -163,7 +163,7 @@ class RosaObsDataset(_SingleDataset):
         super().__init__(expression, input, indices=obs_indices)
 
     def predict(
-        self, results: List[Tensor], prediction_layer: str = "prediction"
+        self, results: List[Tensor], prediction_layer: str = "predicted"
     ) -> None:
         self.adata.layers[prediction_layer] = super()._postprocess(results).numpy()
 
@@ -189,7 +189,7 @@ class RosaVarDataset(_SingleDataset):
         super().__init__(expression.T, input, indices=var_indices)
 
     def predict(
-        self, results: List[Tensor], prediction_layer: str = "prediction"
+        self, results: List[Tensor], prediction_layer: str = "predicted"
     ) -> None:
         self.adata.layers[prediction_layer] = super()._postprocess(results).numpy().T
 
@@ -220,7 +220,7 @@ class RosaJointDataset(_JointDataset):
         super().__init__(expression, input, indices=(obs_indices, var_indices))
 
     def predict(
-        self, results: List[Tensor], prediction_layer: str = "prediction"
+        self, results: List[Tensor], prediction_layer: str = "predicted"
     ) -> None:
         self.adata.layers[prediction_layer] = super()._postprocess(results).numpy()
 
@@ -331,10 +331,10 @@ class RosaMaskedObsVarDataset(RosaObsVarDataset):
         else:
             raise ValueError("Unrecognized masking type")
 
-    def __getitem__(self, idx: int) -> Tuple[Tuple[Tuple[Tensor, Tensor], Tensor], Tensor]: #type: ignore
-        (_, input_var), expression = super(
-            RosaMaskedObsVarDataset, self
-        ).__getitem__(idx)
+    def __getitem__(self, idx: int) -> Tuple[Tuple[Tuple[Tensor, Tensor], Tensor], Tensor]:  # type: ignore
+        (_, input_var), expression = super(RosaMaskedObsVarDataset, self).__getitem__(
+            idx
+        )
         # Do masking
         if not isinstance(self.mask, torch.Tensor):
             mask = torch.rand(expression.shape) <= self.mask
@@ -376,7 +376,7 @@ class RosaMaskedObsDataset(RosaMaskedObsVarDataset):
             n_var_sample=n_var_sample,
         )
 
-    def __getitem__(self, idx: int) -> Tuple[Tuple[Tuple[Tensor, Tensor], Tensor], Tensor]: #type: ignore
+    def __getitem__(self, idx: int) -> Tuple[Tuple[Tuple[Tensor, Tensor], Tensor], Tensor]:  # type: ignore
         actual_idx = self.indices[0][idx]
         expression = self.expression[actual_idx][self.indices[1]]
         if not isinstance(self.mask, torch.Tensor):

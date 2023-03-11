@@ -22,11 +22,16 @@ def predict(config: RosaConfig, chkpt: str) -> ad.AnnData:
         in_dim=rdm.len_input,
         out_dim=rdm.len_target,
         config=config.module,
-        var_input=rdm.predict_dataset.input[1]
+        var_input=rdm.predict_dataset.input[1],
     )
     print(rlm)
 
     trainer = Trainer(accelerator=config.device, devices=1, strategy=None)
-    predictions = trainer.predict(rlm, rdm)
-    rdm.predict_dataset.predict(predictions)
-    return rdm.predict_dataset.adata
+    outputs = trainer.predict(rlm, rdm)
+    predictions, measured = zip(*outputs)  # type: ignore
+    sampled_predictions = [rlm.model.sample(y_hat) for y_hat in predictions]
+    predicted, confidence = zip(*sampled_predictions)
+    rdm.predict_dataset.predict(confidence, "confidence")
+    rdm.predict_dataset.predict(predicted, "predicted")
+    rdm.predict_dataset.predict(measured, "measured")
+    return rdm.predict_dataset.adata, rdm, rlm

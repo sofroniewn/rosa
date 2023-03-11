@@ -14,7 +14,7 @@ class RosaLightningModule(LightningModule):
         in_dim: int,
         out_dim: int,
         config: ModuleConfig,
-        var_input: Optional[torch.Tensor] = None
+        var_input: Optional[torch.Tensor] = None,
     ):
         super(RosaLightningModule, self).__init__()
         if isinstance(in_dim, tuple):
@@ -72,11 +72,11 @@ class RosaLightningModule(LightningModule):
         return loss
 
     def predict_step(self, batch, _):
-        x, _ = batch
+        x, y = batch
         if self.var_input is not None:
             x = (x[0], self.var_input[x[1]])
         y_hat = self(x)
-        return self.model.sample(y_hat)
+        return (y_hat, y)
 
     def configure_optimizers(self):
         return optim.AdamW(self.model.parameters(), lr=self.learning_rate)

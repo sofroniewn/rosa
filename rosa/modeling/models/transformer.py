@@ -86,13 +86,14 @@ class RosaFormerModel(nn.Module):
         if config.transformer is None:
             transformer = nn.Identity()  # type: nn.Module
         else:
-            transformer = Performer(dim=config.transformer.dim,
-                                    depth=config.transformer.depth,
-                                    heads=config.transformer.heads,
-                                    dim_head=config.transformer.dim_head,
-                                    ff_dropout=config.transformer.dropout,
-                                    attn_dropout=config.transformer.dropout,
-                                )
+            transformer = Performer(
+                dim=config.transformer.dim,
+                depth=config.transformer.depth,
+                heads=config.transformer.heads,
+                dim_head=config.transformer.dim_head,
+                ff_dropout=config.transformer.dropout,
+                attn_dropout=config.transformer.dropout,
+            )
 
         # model_config.loss is cross_entropy then figure out n_bins .....
 

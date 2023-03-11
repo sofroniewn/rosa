@@ -9,7 +9,7 @@ from scipy.stats import kstest, spearmanr
 warnings.filterwarnings("ignore", category=ad.ImplicitModificationWarning)
 
 
-def score_predictions(adata):
+def score_predictions(adata, output_layer="predicted", target_layer="measured"):
 
     # Identify cells and genes not trained on (when possible)
     test_genes = np.logical_not(adata.var["train"])
@@ -18,8 +18,8 @@ def score_predictions(adata):
     sc.tl.dendrogram(adata_test, groupby="label", use_rep="X")
 
     # Extract measured and predicted expression
-    X_meas = adata_test.X
-    X_pred = adata_test.layers["prediction"]
+    X_meas = adata_test.layers[target_layer]
+    X_pred = adata_test.layers[output_layer]
 
     # Compute and store results
     results = {}

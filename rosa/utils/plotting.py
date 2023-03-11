@@ -3,20 +3,25 @@ import numpy as np
 import scanpy as sc
 
 
-def plot_marker_gene_heatmap(adata, marker_genes, output_layer: str = "prediction"):
-    max_expression_val = 6
+def plot_marker_gene_heatmap(
+    adata,
+    marker_genes,
+    output_layer: str = "predicted",
+    target_layer="measured",
+    max_expression_val: int = 6,
+):
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 12), gridspec_kw={"wspace": 0})
     sc.pl.matrixplot(
         adata,
         marker_genes,
         groupby="label",
         gene_symbols="feature_name",
-        layer=None,
+        layer=target_layer,
         vmin=0,
         vmax=max_expression_val,
         ax=ax1,
         show=False,
-        title="measured",
+        title=target_layer,
         dendrogram=True,
     )
     fig.axes[-1].remove()
@@ -47,7 +52,12 @@ def plot_marker_gene_heatmap(adata, marker_genes, output_layer: str = "predictio
 
 
 def plot_expression_and_correlation(
-    adata, results, output_layer="prediction", target_layer=None
+    adata,
+    results,
+    output_layer="predicted",
+    target_layer="measured",
+    max_expression_val: int = 6,
+    ylim: int = 1,
 ):
     _, axs = plt.subplots(3, 2, figsize=(14, 13), gridspec_kw={"wspace": 0.2})
 
@@ -57,12 +67,11 @@ def plot_expression_and_correlation(
         X_meas = adata.layers[target_layer]
     X_pred = adata.layers[output_layer]
 
-    max_expression_val = 6
     # Subplot with expression histograms
     bins = np.linspace(0, max_expression_val, 200)
     axs[0, 0].hist(X_meas.flatten(), bins=bins, density=True)
     axs[0, 0].hist(X_pred.flatten(), bins=bins, density=True, alpha=0.5)
-    axs[0, 0].set_ylim([0, 1])
+    axs[0, 0].set_ylim([0, ylim])
     axs[0, 0].set_xlim([0, max_expression_val])
     axs[0, 0].set_xlabel("expression")
 
@@ -78,7 +87,7 @@ def plot_expression_and_correlation(
     axs[0, 1].set_xlim([0, max_expression_val])
     axs[0, 1].set_ylim([0, max_expression_val])
     axs[0, 1].set_aspect("equal", adjustable="box")
-    axs[0, 1].set_xlabel("expression actual")
+    axs[0, 1].set_xlabel("expression measured")
     axs[0, 1].set_ylabel("expression predicted")
 
     # Subplot with correlation across genes

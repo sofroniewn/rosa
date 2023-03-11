@@ -20,7 +20,7 @@ def train(config: RosaConfig) -> None:
         in_dim=rdm.len_input,
         out_dim=rdm.len_target,
         config=config.module,
-        var_input=rdm.predict_dataset.input[1]
+        var_input=rdm.predict_dataset.input[1],
     )
     print(rlm)
 
@@ -29,7 +29,7 @@ def train(config: RosaConfig) -> None:
     )
 
     if config.num_devices > 1:
-        strategy = 'ddp'
+        strategy = "ddp"
     else:
         strategy = None
 
