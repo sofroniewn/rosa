@@ -1,8 +1,8 @@
 hydra:
   run:
-      dir: /Users/nsofroniew/Documents/data/rosa/outputs/${now:%Y-%m-%d}/${now:%H-%M-%S} # /home/ec2-user/ or /Users/nsofroniew/Documents/data/rosa/
+      dir: /home/ec2-user/outputs/${now:%Y-%m-%d}/${now:%H-%M-%S} # /home/ec2-user/ or /Users/nsofroniew/Documents/data/rosa/
 paths:
-  base: /Users/nsofroniew/Documents/data/multiomics/cell_census # /home/ec2-user/ or /Users/nsofroniew/Documents/data/multiomics/
+  base: /home/ec2-user/cell_census # /home/ec2-user/ or /Users/nsofroniew/Documents/data/multiomics/
   dataset: tabula_sapiens
   preprocessed: _sample_${preprocessing.bulk_data.sample_col}__label_${preprocessing.bulk_data.label_col}
   chkpt: null
@@ -15,7 +15,7 @@ preprocessing:
     pcs: 256
     key: train
   bulk_data:
-    sample_col: dataset_id # Use donor_id or dataset_id
+    sample_col: donor_id # Use donor_id or dataset_id
     label_col: cell_type
     min_cells: 50
   filter:
@@ -35,11 +35,11 @@ preprocessing:
     mean_expression_threshold: 0.1
     score_quantile: 0.9
 module:
-  learning_rate: 0.001
+  learning_rate: 0.0005
   criterion:
     loss_function: ce
-device: cpu # cuda or cpu
-num_devices: 1 # 8 or 1
+device: cuda # cuda or cpu
+num_devices: 8 # 8 or 1
 defaults:
   - data_module: transformer
-  - module/model: transformer-null
+  - module/model: transformer

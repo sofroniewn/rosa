@@ -5,9 +5,9 @@ data:
   expression_transform:
     total_counts: null
     log1p: null
-    n_bins: 512
+    n_bins: 8
   n_var_sample: 10000
   mask: 0.15
-batch_size: 2
-accumulate: 8
-num_workers: 0 # 8 or 0
+batch_size: 4
+accumulate: 1
+num_workers: 16 # 8 or 0
