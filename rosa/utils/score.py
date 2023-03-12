@@ -4,12 +4,14 @@ import anndata as ad
 import numpy as np
 import scanpy as sc
 from scipy.stats import kstest, spearmanr
+from sklearn.metrics import accuracy_score, precision_recall_fscore_support
+
 
 # warnings.filterwarnings("ignore", category=ConstantInputWarning)
 warnings.filterwarnings("ignore", category=ad.ImplicitModificationWarning)
 
 
-def score_predictions(adata, output_layer="predicted", target_layer="measured"):
+def score_predictions(adata, output_layer="predicted", target_layer="measured", nbins=None):
 
     # Identify cells and genes not trained on (when possible)
     test_genes = np.logical_not(adata.var["train"])
@@ -64,4 +66,19 @@ def score_predictions(adata, output_layer="predicted", target_layer="measured"):
         mean percent total expression captured per cell {results['total_expression_captured']:.3f}
         """
     )
+
+    if nbins is not None:
+        results["accuracy_score"] = accuracy_score(X_meas.ravel(), X_pred.ravel())
+        precision, recall, fscore, support = precision_recall_fscore_support(X_meas.ravel(), X_pred.ravel(), labels=list(range(nbins)), average='macro')
+        results["precision"] = precision
+        results["recall"] = recall
+        results["fscore"] = fscore
+        print(
+            f"""
+            precision {results['precision']:.3f}
+            recall {results['recall']:.3f}
+            fscore {results['fscore']:.3f}
+            """
+        )        
+
     return adata_test, results

@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import scanpy as sc
+from sklearn.metrics import confusion_matrix
 
 
 def plot_marker_gene_heatmap(
@@ -57,7 +58,7 @@ def plot_expression_and_correlation(
     output_layer="predicted",
     target_layer="measured",
     max_expression_val: int = 6,
-    ylim: int = 1,
+    nbins: int = None,
 ):
     _, axs = plt.subplots(3, 2, figsize=(14, 13), gridspec_kw={"wspace": 0.2})
 
@@ -68,27 +69,44 @@ def plot_expression_and_correlation(
     X_pred = adata.layers[output_layer]
 
     # Subplot with expression histograms
-    bins = np.linspace(0, max_expression_val, 200)
+    if nbins is None:
+        bins = np.linspace(0, max_expression_val, 200)
+        ylim = [0, 1]
+        xlim = [0, max_expression_val]
+    else:
+        bins = np.arange(nbins + 1) - 0.5
+        ylim = [0, 1 / nbins * 2.5]
+        xlim = [-0.5, nbins-0.5]
     axs[0, 0].hist(X_meas.flatten(), bins=bins, density=True)
     axs[0, 0].hist(X_pred.flatten(), bins=bins, density=True, alpha=0.5)
-    axs[0, 0].set_ylim([0, ylim])
-    axs[0, 0].set_xlim([0, max_expression_val])
+    axs[0, 0].set_ylim(ylim)
+    axs[0, 0].set_xlim(xlim)
     axs[0, 0].set_xlabel("expression")
 
-    # Subplot with expression scatter
-    axs[0, 1].plot(X_meas.flatten(), X_pred.flatten(), ".", alpha=0.01)
-    axs[0, 1].plot(
-        [0, max_expression_val],
-        [0, max_expression_val],
-        "k",
-        linewidth="2",
-        linestyle="--",
-    )
-    axs[0, 1].set_xlim([0, max_expression_val])
-    axs[0, 1].set_ylim([0, max_expression_val])
-    axs[0, 1].set_aspect("equal", adjustable="box")
-    axs[0, 1].set_xlabel("expression measured")
-    axs[0, 1].set_ylabel("expression predicted")
+    if nbins is None:
+        # Subplot with expression scatter
+        axs[0, 1].plot(X_meas.flatten(), X_pred.flatten(), ".", alpha=0.01)
+        axs[0, 1].plot(
+            xlim,
+            xlim,
+            "k",
+            linewidth="2",
+            linestyle="--",
+        )
+        axs[0, 1].set_xlim(xlim)
+        axs[0, 1].set_ylim(xlim)
+        axs[0, 1].set_aspect("equal", adjustable="box")
+        axs[0, 1].set_xlabel("expression measured")
+        axs[0, 1].set_ylabel("expression predicted")
+    else:
+        # Subplot with confusion matrix
+        cm = confusion_matrix(X_meas.flatten(), X_pred.flatten(), labels=list(range(nbins)))
+        axs[0, 1].imshow(cm)
+        axs[0, 1].set_xlim(xlim)
+        axs[0, 1].set_ylim(xlim)
+        axs[0, 1].set_aspect("equal", adjustable="box")
+        axs[0, 1].set_xlabel("expression predicted")
+        axs[0, 1].set_ylabel("expression measured")
 
     # Subplot with correlation across genes
     axs[1, 0].hist(
@@ -110,6 +128,6 @@ def plot_expression_and_correlation(
     )
     axs[2, 1].set_xlabel("mean expression across cells (each data point is a gene)")
     axs[2, 1].set_ylabel("spearmanr across cells")
-    axs[2, 1].set_xlim([0, max_expression_val])
+    axs[2, 1].set_xlim(xlim)
 
     axs[2, 0].set_visible(False)

@@ -1,4 +1,4 @@
-dropout_prob: 0
+dropout_prob: 0.1
 layer_norm: null
 layer_norm_1: null
 n_bins: ${data_module.data.expression_transform.n_bins}
@@ -7,7 +7,7 @@ transformer:
   heads: 10
   dim_head: 64
   depth: 6
-  dropout: 0.3
+  dropout: 0.1
 input_embed:
   layer_norm: False
   dropout_prob: 0

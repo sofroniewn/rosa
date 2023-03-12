@@ -110,14 +110,20 @@ class RosaFormerModel(nn.Module):
                 [
                     ("dual_embed", dual_embed),
                     ("join_embeds", join_embeds),
-                    ("transformer", transformer),
-                    ("dropout", nn.Dropout(config.dropout_prob)),
-                    ("expression_head", head),
                 ]
             )
         )
+        self.transformer = transformer
+        self.dropout = nn.Dropout(config.dropout_prob)
+        self.expression_head = head
 
     def forward(
         self, x: Tuple[torch.Tensor, ...]
     ) -> Union[torch.Tensor, torch.distributions.Distribution]:
-        return self.main(x)  # type: ignore
+        mask = x[0][1]
+        x = self.main(x)  # type: ignore
+        # attention mask is true for values where attention can look,
+        # false for values that should be ignored
+        x = self.transformer(x, mask=~mask)
+        x = self.dropout(x)
+        return self.expression_head(x)
