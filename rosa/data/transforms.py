@@ -44,13 +44,21 @@ class Log1p(nn.Module):
 class QuantileNormalize(nn.Module):
     """Normalize a tensor by quantiles."""
 
-    def __init__(self, n_bins: int) -> None:
+    def __init__(self, n_bins: int, zero_bin=True) -> None:
         super().__init__()
         self.n_bins = n_bins
+        self.zero_bin = zero_bin
 
     def forward(self, tensor: torch.Tensor) -> torch.Tensor:
-        boundaries = torch.quantile(tensor, torch.linspace(0, 1, self.n_bins))
-        return torch.bucketize(tensor, boundaries)
+        if self.zero_bin:
+            # Put all zero values in their own bin and then distribute others evenly
+            boundaries = torch.quantile(tensor[tensor>0], torch.linspace(0, 1, self.n_bins))
+            boundaries = torch.concat([torch.tensor([0]), boundaries])
+            boundaries[-1] = torch.inf
+            return torch.bucketize(tensor, boundaries, right=True) - 1
+        else:
+            boundaries = torch.quantile(tensor, torch.linspace(0, 1, self.n_bins))
+            return torch.bucketize(tensor, boundaries)
 
 
 class ExpressionTransform(nn.Sequential):
