@@ -75,6 +75,7 @@ def score_predictions(adata, output_layer="predicted", target_layer="measured", 
         results["fscore"] = fscore
         print(
             f"""
+            accuracy {results['accuracy_score']:.3f}
             precision {results['precision']:.3f}
             recall {results['recall']:.3f}
             fscore {results['fscore']:.3f}

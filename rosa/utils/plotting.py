@@ -100,7 +100,7 @@ def plot_expression_and_correlation(
         axs[0, 1].set_ylabel("expression predicted")
     else:
         # Subplot with confusion matrix
-        cm = confusion_matrix(X_meas.flatten(), X_pred.flatten(), labels=list(range(nbins)))
+        cm = confusion_matrix(X_meas.flatten(), X_pred.flatten(), labels=list(range(nbins)), normalize='true')
         axs[0, 1].imshow(cm)
         axs[0, 1].set_xlim(xlim)
         axs[0, 1].set_ylim(xlim)
