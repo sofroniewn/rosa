@@ -15,7 +15,7 @@ preprocessing:
     # pcs: 256
     # key: train
   bulk_data:
-    sample_col: single_cell # Use donor_id or dataset_id or single_cell
+    sample_col: donor_id # Use donor_id or dataset_id or single_cell
     label_col: cell_type
     min_cells: 50
   filter:
@@ -35,7 +35,7 @@ preprocessing:
     mean_expression_threshold: 0.1
     score_quantile: 0.9
 module:
-  learning_rate: 0.0001
+  learning_rate: 0.0005
   criterion:
     loss_function: ce
 device: cuda # cuda or cpu

@@ -1,7 +1,8 @@
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import List, Optional, Union
 
 import numpy as np
+from scipy.sparse import csr_matrix
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -16,7 +17,9 @@ class ToTensor(nn.Module):
         super().__init__()
         self.dtype = dtype
 
-    def forward(self, tensor: np.ndarray) -> torch.Tensor:
+    def forward(self, tensor: Union[np.ndarray, csr_matrix]) -> torch.Tensor:
+        if isinstance(tensor, csr_matrix):
+            tensor = tensor.toarray()
         return torch.from_numpy(tensor).type(torch.float32)
 
 

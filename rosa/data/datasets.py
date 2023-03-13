@@ -207,7 +207,7 @@ class RosaJointDataset(_JointDataset):
         expression_transform_config: Optional[ExpressionTransformConfig] = None,
     ) -> None:
         self.adata = adata
-        expression = _prepare_expression(
+        expression, tf = _prepare_expression(
             adata, expression_layer, expression_transform_config
         )
 
@@ -218,6 +218,7 @@ class RosaJointDataset(_JointDataset):
         )
 
         super().__init__(expression, input, indices=(obs_indices, var_indices))
+        self.tf = tf
 
     def predict(
         self, results: List[Tensor], prediction_layer: str = "predicted"
@@ -378,7 +379,7 @@ class RosaMaskedObsDataset(RosaMaskedObsVarDataset):
 
     def __getitem__(self, idx: int) -> Tuple[Tuple[Tuple[Tensor, Tensor], Tensor], Tensor]:  # type: ignore
         actual_idx = self.indices[0][idx]
-        expression = self.expression[actual_idx][self.indices[1]]
+        expression = self.tf(self.expression[actual_idx])[self.indices[1]]
         if not isinstance(self.mask, torch.Tensor):
             mask = torch.rand(expression.shape) <= self.mask
         else:
@@ -407,7 +408,7 @@ def _prepare_expression(
     if expression_transform_config is None:
         expression_transform_config = ExpressionTransformConfig()
     expression_transform = ExpressionTransform(expression_transform_config)
-    return expression_transform(raw_expression)
+    return raw_expression, expression_transform #type: ignore
 
 
 def _prepare_obs(
