@@ -240,9 +240,11 @@ def add_rank_genes_groups_markers(
 ) -> ad.AnnData:
     markers = {}  # type: Dict[str, str]
     expression_thresh = config.mean_expression_threshold
+    mean_expression = np.squeeze(np.array(adata.X.mean(axis=0)))
+    
     test_genes = adata.var[
         np.logical_and(
-            np.logical_not(adata.var["train"]), adata.X.mean(axis=0) > expression_thresh
+            np.logical_not(adata.var["train"]), mean_expression > np.quantile(mean_expression, expression_thresh)
         )
     ].index
     for c in adata.uns["rank_genes_groups"]["names"].dtype.names:
@@ -327,21 +329,25 @@ def reconstruct_expression(
 def bulk_data(adata: ad.AnnData, config: BulkDataConfig) -> ad.AnnData:
     # Note that genes with no samples will be dropped
     # padata = average_expression_per_feature(adata, config.label_col)
-    padata = dc.get_pseudobulk(
-        adata,
-        sample_col=config.sample_col,
-        groups_col=config.label_col,
-        layer=None,
-        min_prop=0,
-        min_cells=config.min_cells,
-        min_counts=0,
-        min_smpls=0,
-    )
-    padata.var = adata.var.loc[padata.var.index]
-    padata.obs["is_primary_data"] = padata.obs["is_primary_data"].astype(str)
-    padata.obs["label"] = padata.obs[config.label_col].astype("category")
-    padata.obs["sample"] = padata.obs[config.sample_col].astype("category")
-    padata.uns = adata.uns
+    if config.sample_col != 'single_cell':
+        padata = dc.get_pseudobulk(
+            adata,
+            sample_col=config.sample_col,
+            groups_col=config.label_col,
+            layer=None,
+            min_prop=0,
+            min_cells=config.min_cells,
+            min_counts=0,
+            min_smpls=0,
+        )
+        padata.var = adata.var.loc[padata.var.index]
+        padata.obs["is_primary_data"] = padata.obs["is_primary_data"].astype(str)
+        padata.obs["label"] = padata.obs[config.label_col].astype("category")
+        padata.obs["sample"] = padata.obs[config.sample_col].astype("category")
+        padata.uns = adata.uns
+    else:
+        padata = adata
+        padata.obs["label"] = adata.obs[config.label_col].astype("category")
     return padata
 
 
@@ -429,7 +435,7 @@ def preprocessing_pipeline(
         print("Add rank genes groups")
         adata = rank_genes_groups(adata, adata_sc, config.markers)
         print("Add hvgs and marker genes")
-        adata = add_dendrogram_and_hvgs(adata)
+        # adata = add_dendrogram_and_hvgs(adata)
         adata = add_rank_genes_groups_markers(adata, config.markers)
 
     # Attach preprocessing metadata
