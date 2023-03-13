@@ -35,7 +35,7 @@ preprocessing:
     mean_expression_threshold: 0.1
     score_quantile: 0.9
 module:
-  learning_rate: 0.000001
+  learning_rate: 0.0001
   criterion:
     loss_function: ce
 device: cuda # cuda or cpu

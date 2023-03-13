@@ -6,7 +6,7 @@ transformer:
   dim: 320
   heads: 10
   dim_head: 64
-  depth: 6
+  depth: 2
   dropout: 0.1
 input_embed:
   layer_norm: False
