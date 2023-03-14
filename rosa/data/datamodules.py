@@ -45,6 +45,7 @@ class RosaDataModule(LightningDataModule):
         )
 
         self.var_dim = self.predict_dataset.var_dim
+        self.var_input = self.predict_dataset.var_input
 
         self.train_dataset = RosaDataset(
             adata,

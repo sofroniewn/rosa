@@ -5,7 +5,7 @@ import torch.optim as optim
 from pytorch_lightning import LightningModule
 
 from ..utils.config import ModuleConfig
-from .models import RosaJointModel, RosaSingleModel, RosaFormerModel, criterion_factory
+from .models import RosaTransformer, criterion_factory
 
 
 class RosaLightningModule(LightningModule):
@@ -15,7 +15,7 @@ class RosaLightningModule(LightningModule):
         config: ModuleConfig,
     ):
         super(RosaLightningModule, self).__init__()
-        self.model = RosaFormerModel(
+        self.model = RosaTransformer(
             in_dim=var_input.shape[1],
             config=config.model,
         )
@@ -26,34 +26,34 @@ class RosaLightningModule(LightningModule):
         self.learning_rate = config.learning_rate
         self.criterion = criterion_factory(config.criterion)
 
-    def forward(self, x):
-        return self.model.forward(x)
+    def forward(self, batch):
+        return self.model.forward(batch)
 
     def training_step(self, batch, _):
-        y = batch['expression'].copy()
-        x = ((batch['expression'], batch['mask']), self.var_input[batch['indices']])
-        y_hat = self(x)
-        y_hat = y_hat[batch['mask']]
-        y = y[batch['mask']]
-        loss = self.criterion(y_hat, y)
+        expression = batch['expression'].clone().detatch()
+        batch['var_input'] = self.var_input[batch['indices']]
+        expression_predicted = self(batch)
+        expression_predicted = expression_predicted[batch['mask']]
+        expression = expression[batch['mask']]
+        loss = self.criterion(expression_predicted, expression)
         self.log("train_loss", loss, on_epoch=True, prog_bar=True, logger=True)
         return loss
 
     def validation_step(self, batch, _):
-        y = batch['expression'].copy()
-        x = ((batch['expression'], batch['mask']), self.var_input[batch['indices']])
-        y_hat = self(x)
-        y_hat = y_hat[batch['mask']]
-        y = y[batch['mask']]
-        loss = self.criterion(y_hat, y)
+        expression = batch['expression'].clone().detatch()
+        batch['var_input'] = self.var_input[batch['indices']]
+        expression_predicted = self(batch)
+        expression_predicted = expression_predicted[batch['mask']]
+        expression = expression[batch['mask']]
+        loss = self.criterion(expression_predicted, expression)
         self.log("val_loss", loss, on_epoch=True, prog_bar=True, logger=True)
         return loss
 
     def predict_step(self, batch, _):
-        y = batch['expression'].copy()
-        x = ((batch['expression'], batch['mask']), self.var_input[batch['indices']])
-        y_hat = self(x)
-        return (y_hat, y)
+        expression = batch['expression'].clone().detatch()
+        batch['var_input'] = self.var_input[batch['indices']]
+        expression_predicted = self(batch)
+        return (expression_predicted, expression)
 
     def configure_optimizers(self):
         return optim.AdamW(self.model.parameters(), lr=self.learning_rate)

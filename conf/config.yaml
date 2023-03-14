@@ -40,6 +40,7 @@ module:
     loss_function: ce
 device: cuda # cuda or cpu
 num_devices: 8 # 8 or 1
+gradient_clip_val: 10
 defaults:
   - data_module: transformer
   - module/model: transformer

@@ -19,7 +19,7 @@ def predict(config: RosaConfig, chkpt: str) -> ad.AnnData:
     # Load model from checkpoint
     rlm = RosaLightningModule.load_from_checkpoint(
         chkpt,
-        var_input=rdm.predict_dataset.var_input,
+        var_input=rdm.var_input,
         config=config.module,
     )
     print(rlm)

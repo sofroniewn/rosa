@@ -6,6 +6,7 @@ data:
     total_counts: null
     log1p: null
     n_bins: 16
+    zero_bin: True
   n_var_sample: 12000
   mask: 0.15
 batch_size: 4

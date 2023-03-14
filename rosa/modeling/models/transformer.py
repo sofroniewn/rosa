@@ -1,5 +1,5 @@
 from collections import OrderedDict
-from typing import Optional, Tuple, Union
+from typing import Dict, Optional, Tuple, Union
 
 import torch
 import torch.nn as nn
@@ -15,13 +15,13 @@ from .components import (
 )
 
 
-class RosaFormerModel(nn.Module):
+class RosaTransformer(nn.Module):
     def __init__(
         self,
         in_dim: int,
         config: ModelConfig,
     ):
-        super(RosaFormerModel, self).__init__()
+        super(RosaTransformer, self).__init__()
         # No layer config provided for transformer like models
         assert config.layer_norm is None
 
@@ -95,8 +95,6 @@ class RosaFormerModel(nn.Module):
                 attn_dropout=config.transformer.dropout,
             )
 
-        # model_config.loss is cross_entropy then figure out n_bins .....
-
         out_dim = 1
         head = expression_head_factory(
             embedding_dim,
@@ -118,9 +116,10 @@ class RosaFormerModel(nn.Module):
         self.expression_head = head
 
     def forward(
-        self, x: Tuple[torch.Tensor, ...]
+        self, batch: Dict[str, torch.Tensor]
     ) -> Union[torch.Tensor, torch.distributions.Distribution]:
-        mask = x[0][1]
+        mask = batch['mask']
+        x = ((batch['expression'], batch['mask']), batch['var_input'])
         x = self.main(x)  # type: ignore
         # attention mask is true for values where attention can look,
         # false for values that should be ignored

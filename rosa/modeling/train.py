@@ -17,7 +17,7 @@ def train(config: RosaConfig) -> None:
     rdm.setup()
 
     rlm = RosaLightningModule(
-        var_input=rdm.predict_dataset.var_input,
+        var_input=rdm.var_input,
         config=config.module,
     )
     print(rlm)
@@ -42,6 +42,6 @@ def train(config: RosaConfig) -> None:
         strategy=strategy,
         callbacks=[checkpoint_callback],
         accumulate_grad_batches=config.data_module.accumulate,
-        gradient_clip_val=10,
+        gradient_clip_val=config.gradient_clip_val,
     )
     trainer.fit(rlm, rdm)
