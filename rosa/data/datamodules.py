@@ -9,7 +9,7 @@ from pytorch_lightning import LightningDataModule
 from torch.utils.data import DataLoader
 
 from ..utils.config import DataModuleConfig
-from .datasets import rosa_dataset_factory
+from .datasets import RosaDataset
 
 
 class RosaDataModule(LightningDataModule):
@@ -33,38 +33,39 @@ class RosaDataModule(LightningDataModule):
         var_indices_val = torch.Tensor(np.where(np.logical_not(adata.var["train"]))[0])
 
         # create predict dataset with all data
-        if self.data_config.mask is not None:
-            mask = "var_indices"
-            var_indices_predict = var_indices_val
-        else:
-            mask = None
-            var_indices_predict = None
-
-        self.predict_dataset = rosa_dataset_factory(
+        self.predict_dataset = RosaDataset(
             adata,
-            data_config=self.data_config,
-            var_indices=var_indices_predict,
-            mask=mask,
+            var_input=self.data_config.var_input,
+            obs_indices=None,
+            var_indices=None,
+            n_var_sample=None,
+            mask=var_indices_val,
+            expression_layer=self.data_config.expression_layer,
+            expression_transform_config=self.data_config.expression_transform,
         )
 
-        self.len_input = self.predict_dataset.input_dim
-        self.len_target = self.predict_dataset.expression_dim
+        self.var_dim = self.predict_dataset.var_dim
 
-        self.train_dataset = rosa_dataset_factory(
+        self.train_dataset = RosaDataset(
             adata,
-            data_config=self.data_config,
+            var_input=self.data_config.var_input,
             obs_indices=obs_indices_train,
             var_indices=var_indices_train,
             n_var_sample=self.data_config.n_var_sample,
             mask=self.data_config.mask,
+            expression_layer=self.data_config.expression_layer,
+            expression_transform_config=self.data_config.expression_transform,
         )
 
-        self.val_dataset = rosa_dataset_factory(
+        self.val_dataset = RosaDataset(
             adata,
-            data_config=self.data_config,
+            var_input=self.data_config.var_input,
             obs_indices=obs_indices_val,
-            var_indices=var_indices_val,
-            mask=mask,
+            var_indices=None,
+            n_var_sample=None,
+            mask=var_indices_val,
+            expression_layer=self.data_config.expression_layer,
+            expression_transform_config=self.data_config.expression_transform,
         )
         self.test_dataset = self.val_dataset
 

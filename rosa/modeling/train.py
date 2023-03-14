@@ -17,10 +17,8 @@ def train(config: RosaConfig) -> None:
     rdm.setup()
 
     rlm = RosaLightningModule(
-        in_dim=rdm.len_input,
-        out_dim=rdm.len_target,
+        var_input=rdm.predict_dataset.var_input,
         config=config.module,
-        var_input=rdm.predict_dataset.input[1],
     )
     print(rlm)
 

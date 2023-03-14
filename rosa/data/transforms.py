@@ -76,6 +76,6 @@ class ExpressionTransform(nn.Sequential):
             transforms.append(Log1p())
 
         if cfg.n_bins is not None:
-            transforms.append(QuantileNormalize(cfg.n_bins))
+            transforms.append(QuantileNormalize(cfg.n_bins, zero_bin=cfg.zero_bin))
 
         super().__init__(*transforms)

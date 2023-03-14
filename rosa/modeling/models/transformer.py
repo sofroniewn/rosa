@@ -18,7 +18,7 @@ from .components import (
 class RosaFormerModel(nn.Module):
     def __init__(
         self,
-        in_dim: Tuple[int, int],
+        in_dim: int,
         config: ModelConfig,
     ):
         super(RosaFormerModel, self).__init__()
@@ -26,7 +26,7 @@ class RosaFormerModel(nn.Module):
         assert config.layer_norm is None
 
         if config.layer_norm_1:
-            layer_norm_nn_1 = nn.LayerNorm(in_dim[1])  # type: nn.Module
+            layer_norm_nn_1 = nn.LayerNorm(in_dim)  # type: nn.Module
         else:
             layer_norm_nn_1 = nn.Identity()
 
@@ -45,12 +45,12 @@ class RosaFormerModel(nn.Module):
 
         # Determine embedding dimension if embedding provided for second input
         if config.input_embed_1 is None:
-            embedding_dim_1 = in_dim[1]
+            embedding_dim_1 = in_dim
             input_embed_1 = nn.Identity()  # type: nn.Module
         else:
             embedding_dim_1 = config.input_embed_1.embedding_dim
             input_embed_1 = InputEmbed(
-                in_dim[1], embedding_dim_1, config=config.input_embed_1
+                in_dim, embedding_dim_1, config=config.input_embed_1
             )
 
         input_embeds = nn.ModuleList(
@@ -124,6 +124,6 @@ class RosaFormerModel(nn.Module):
         x = self.main(x)  # type: ignore
         # attention mask is true for values where attention can look,
         # false for values that should be ignored
-        x = self.transformer(x, mask=~mask)
-        x = self.dropout(x)
-        return self.expression_head(x)
+        x = self.transformer(x, mask=~mask)   # type: ignore
+        x = self.dropout(x)   # type: ignore
+        return self.expression_head(x)   # type: ignore

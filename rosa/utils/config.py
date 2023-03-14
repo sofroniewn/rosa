@@ -57,10 +57,11 @@ class MarkerGeneConfig:
 @dataclass
 class ExpressionTransformConfig:
     total_counts: Optional[int] = None  # Total counts to normalize expression per cell
-    log1p: Optional[bool] = None  # Whether to log1p normalize expression data per cell
+    log1p: bool = False  # Whether to log1p normalize expression data per cell
     n_bins: Optional[
         int
-    ] = None  # Number of bins to quantile normalize data into per cell.
+    ] = None  # Num bins to quantile normalize data per cell.
+    zero_bin: bool = True # Whether to zero use a seperate zero bin
     # Note if quantile normalization applied then other normalizations are irrelvant.
 
 
