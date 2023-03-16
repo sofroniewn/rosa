@@ -60,6 +60,7 @@ class RosaLightningModule(LightningModule):
         results['expression'] = expression[batch['mask']].reshape(batch_size, -1)
         results['batch_idx'] = batch_idx
         results['dataloader_idx'] = dataloader_idx
+        results["obs_idx"] = batch["obs_idx"]
         return results
 
     def configure_optimizers(self):

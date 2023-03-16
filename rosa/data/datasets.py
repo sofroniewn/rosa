@@ -137,4 +137,5 @@ class RosaDataset(Dataset):
         item["expression"] = expression
         item["mask"] = mask
         item["indices"] = actual_idx_var
+        item["obs_idx"] = actual_idx_obs
         return item
