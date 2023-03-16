@@ -12,16 +12,9 @@ warnings.filterwarnings("ignore", category=ad.ImplicitModificationWarning)
 
 
 def score_predictions(adata, output_layer="predicted", target_layer="measured", nbins=None):
-
-    # Identify cells and genes not trained on (when possible)
-    test_genes = np.logical_not(adata.var["train"])
-    test_cells = np.logical_not(adata.obs["train"])
-    adata_test = adata[test_cells, test_genes]
-    sc.tl.dendrogram(adata_test, groupby="label", use_rep="X")
-
     # Extract measured and predicted expression
-    X_meas = adata_test.layers[target_layer]
-    X_pred = adata_test.layers[output_layer]
+    X_meas = adata.layers[target_layer]
+    X_pred = adata.layers[output_layer]
 
     # Compute and store results
     results = {}
@@ -82,4 +75,4 @@ def score_predictions(adata, output_layer="predicted", target_layer="measured", 
             """
         )        
 
-    return adata_test, results
+    return results

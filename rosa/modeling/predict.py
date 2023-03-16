@@ -1,14 +1,21 @@
+from typing import Tuple
 import anndata as ad
 from pytorch_lightning import Trainer
 import torch
+from pytorch_lightning.callbacks import BasePredictionWriter
+import os
+import torch.nn as nn
 
 from ..data import RosaDataModule, create_io_paths
-from ..utils import RosaConfig
+from ..utils import RosaConfig, score_predictions
 from .modules import RosaLightningModule
 
 
-from pytorch_lightning.callbacks import BasePredictionWriter
-import os
+def sample(x: torch.Tensor, nbins: int=1) -> Tuple[torch.Tensor, torch.Tensor]:
+    if nbins > 1:
+        confidence, prediction = nn.functional.softmax(x, dim=-1).max(dim=-1)
+        return prediction, confidence
+    return x, torch.ones_like(x)
 
 
 class CustomWriter(BasePredictionWriter):
@@ -49,31 +56,56 @@ def predict(config: RosaConfig, chkpt: str) -> ad.AnnData:
     else:
         strategy = None
 
-    output_dir = str(rdm.adata_path.with_name(rdm.adata_path.stem + '__preprocessed'))
+    output_dir = str(rdm.adata_path.with_name(rdm.adata_path.stem + '__processed'))
     if not os.path.exists(output_dir):
         os.mkdir(output_dir)
     pred_writer = CustomWriter(output_dir=output_dir, write_interval="epoch")
-    trainer = Trainer(accelerator=config.device, devices=config.num_devices, strategy=strategy, callbacks=[pred_writer])
-    trainer.predict(rlm, rdm, return_predictions=False)
+    # trainer = Trainer(accelerator=config.device, devices=config.num_devices, strategy=strategy, callbacks=[pred_writer])
+    # trainer.predict(rlm, rdm, return_predictions=False)
 
+    print('Generating predictions done')
+    if rlm.global_rank == 0:
+        print('Making predicted adata object')
+        results = []
+        for global_rank in range(config.num_devices):
+            results.append(torch.load(os.path.join(output_dir, f"predictions_{global_rank}.pt")))
 
-    # predicted_bins = []
-    # measured = []
-    # for results in outputs:
-    #     predicted_bins.append(results['expression_predicted'])
-    #     measured.append(results['expression'])
-    # predicted, confidence = zip(*[rlm.model.sample(y_hat) for y_hat in predicted_bins])
-    # confidence = torch.concat(confidence).detach_().numpy()
-    # measured = torch.concat(measured).detach_().numpy()
-    # predicted = torch.concat(predicted).detach_().numpy()
+        predicted = []
+        confidence = []
+        measured = []
+        obs_idx = []
+        nbins = config.data_module.data.expression_transform.n_bins
+        for device in results:
+            for batch in device[0]:
+                p, c = sample(batch['expression_predicted'], nbins=nbins)
+                predicted.append(p)
+                confidence.append(c)
+                measured.append(batch['expression'])
+                obs_idx.append(batch['obs_idx'])
 
-    # obs_indices = rdm.val_dataset.obs_indices.detach_().numpy()
-    # var_bool = rdm.val_dataset.mask.detach_().numpy()
+        obs_idx = torch.concat(obs_idx)
+        order = torch.argsort(obs_idx)
 
-    # adata = rdm.val_dataset.adata
-    # adata_predict = adata[obs_indices, var_bool]
-    # adata_predict.layers["confidence"] = confidence
-    # adata_predict.layers["measured"] = measured
-    # adata_predict.layers["predicted"] = predicted
+        confidence = torch.concat(confidence)[order]
+        measured = torch.concat(measured)[order]
+        predicted = torch.concat(predicted)[order]
 
-    # return adata_predict, rdm, rlm
+        obs_indices = rdm.val_dataset.obs_indices.detach_().numpy()
+        var_bool = rdm.val_dataset.mask.detach_().numpy()
+
+        adata = rdm.val_dataset.adata
+        adata_predict = adata[obs_indices, var_bool]
+        adata_predict.layers["confidence"] = confidence.detach_().numpy()
+        adata_predict.layers["measured"] = measured.detach_().numpy()
+        adata_predict.layers["predicted"] = predicted.detach_().numpy()
+
+        print('Scoring predicted adata')
+
+        results = score_predictions(adata_predict, nbins=nbins)
+        adata_predict.uns['results'] = results
+        adata_predict.uns['nbins'] = nbins
+
+        print('Saving predicted adata')
+        output_path = str(rdm.adata_path.with_name(rdm.adata_path.stem + '__processed.h5ad'))
+        print(output_path)
+        adata_predict.write_h5ad(output_path)

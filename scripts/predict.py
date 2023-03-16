@@ -19,7 +19,7 @@ if __name__ == "__main__":
 
         # config.device = 'cpu'
         # config.num_devices = 32
-        config.preprocessing.bulk_data.sample_col = 'donor_id'
+        # config.preprocessing.bulk_data.sample_col = 'donor_id'
         predict(config, chkpt)
         
         # adata, rdm, rlm = predict(config, chkpt)
