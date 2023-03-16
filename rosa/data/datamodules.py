@@ -32,27 +32,13 @@ class RosaDataModule(LightningDataModule):
         obs_indices_val = torch.Tensor(np.where(np.logical_not(adata.obs["train"]))[0])
         var_indices_val = torch.Tensor(np.where(np.logical_not(adata.var["train"]))[0])
 
-        # create predict dataset with all data
-        self.predict_dataset = RosaDataset(
-            adata,
-            var_input=self.data_config.var_input,
-            obs_indices=None,
-            var_indices=None,
-            n_var_sample=None,
-            mask=var_indices_val,
-            expression_layer=self.data_config.expression_layer,
-            expression_transform_config=self.data_config.expression_transform,
-        )
-
-        self.var_dim = self.predict_dataset.var_dim
-        self.var_input = self.predict_dataset.var_input
-
         self.train_dataset = RosaDataset(
             adata,
             var_input=self.data_config.var_input,
             obs_indices=obs_indices_train,
             var_indices=var_indices_train,
             n_var_sample=self.data_config.n_var_sample,
+            n_obs_sample=self.data_config.n_obs_sample,
             mask=self.data_config.mask,
             expression_layer=self.data_config.expression_layer,
             expression_transform_config=self.data_config.expression_transform,
@@ -64,11 +50,14 @@ class RosaDataModule(LightningDataModule):
             obs_indices=obs_indices_val,
             var_indices=None,
             n_var_sample=None,
+            n_obs_sample=None,
             mask=var_indices_val,
             expression_layer=self.data_config.expression_layer,
             expression_transform_config=self.data_config.expression_transform,
         )
-        self.test_dataset = self.val_dataset
+
+        self.var_dim = self.train_dataset.var_dim
+        self.var_input = self.train_dataset.var_input
 
     def train_dataloader(self):
         return DataLoader(
@@ -92,8 +81,8 @@ class RosaDataModule(LightningDataModule):
         if batch_size is None:
             batch_size = self.batch_size
         return DataLoader(
-            self.test_dataset,
-            batch_size=batch_size,
+            self.val_dataset,
+            batch_size=self.batch_size,
             shuffle=False,
             num_workers=self.num_workers,
         )
@@ -102,8 +91,8 @@ class RosaDataModule(LightningDataModule):
         if batch_size is None:
             batch_size = self.batch_size
         return DataLoader(
-            self.predict_dataset,
-            batch_size=batch_size,
+            self.val_dataset,
+            batch_size=self.batch_size,
             shuffle=False,
             num_workers=self.num_workers,
         )

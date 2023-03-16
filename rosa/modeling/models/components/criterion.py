@@ -19,7 +19,7 @@ def criterion_factory(config: CriterionConfig) -> Callable:
     if config.loss_function == LossFunctions.MAE.name.lower():
         return tm_F.mean_absolute_error
     if config.loss_function == LossFunctions.CE.name.lower():
-        return torch.nn.CrossEntropyLoss(label_smoothing=0.1)
+        return torch.nn.CrossEntropyLoss()
     if config.loss_function == LossFunctions.LOGPROB.name.lower():
         return mean_log_prob_criterion
 

@@ -5,7 +5,7 @@ paths:
   base: /home/ec2-user/cell_census # /home/ec2-user/ or /Users/nsofroniew/Documents/data/multiomics/
   dataset: tabula_sapiens
   preprocessed: _sample_${preprocessing.bulk_data.sample_col}__label_${preprocessing.bulk_data.label_col}
-  chkpt: null
+  chkpt: /home/ec2-user/outputs/2023-03-14/23-37-15/checkpoints/last.ckpt
 preprocessing:
   gene_embeddings:
     path: /Users/nsofroniew/Documents/data/multiomics/enformer/Homo_sapiens.GRCh38.genes.enformer_tss_embedding.zarr
@@ -15,7 +15,7 @@ preprocessing:
     # pcs: 256
     # key: train
   bulk_data:
-    sample_col: donor_id # Use donor_id or dataset_id or single_cell
+    sample_col: single_cell # Use donor_id or dataset_id or single_cell
     label_col: cell_type
     min_cells: 50
   filter:

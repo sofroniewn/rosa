@@ -20,7 +20,7 @@ class ToTensor(nn.Module):
     def forward(self, tensor: Union[np.ndarray, csr_matrix]) -> torch.Tensor:
         if isinstance(tensor, csr_matrix):
             tensor = tensor.toarray()
-        return torch.from_numpy(tensor).type(torch.float32)
+        return torch.from_numpy(tensor).type(torch.float32).squeeze(dim=0)
 
 
 class CountNormalize(nn.Module):

@@ -85,6 +85,7 @@ class DataConfig:
     obs_input: Optional[str] = None  # If null no obs input used
     expression_transform: Optional[ExpressionTransformConfig] = None
     n_var_sample: Optional[int] = None
+    n_obs_sample: Optional[int] = None
     mask: Optional[float] = None
 
 

@@ -31,6 +31,7 @@ class RosaDataset(Dataset):
         *,
         var_input: str,
         n_var_sample: Optional[int] = None,
+        n_obs_sample: Optional[int] = None,
         obs_indices: Optional[Tensor] = None,
         var_indices: Optional[Tensor] = None,
         mask: Optional[Union[float, List, Tensor]] = None,
@@ -89,6 +90,9 @@ class RosaDataset(Dataset):
             raise ValueError(f"Min index {self.obs_indices.min()} less than zero")
 
         self.n_var_sample = n_var_sample
+        if n_obs_sample is not None and n_obs_sample >= len(self.obs_indices):
+            n_obs_sample = None
+        self.n_obs_sample = n_obs_sample
         self.n_var = len(self.var_indices)
 
         # Create mask
@@ -105,10 +109,16 @@ class RosaDataset(Dataset):
             raise ValueError("Unrecognized masking type")
 
     def __len__(self) -> int:
+        if self.n_obs_sample is not None:
+            return self.n_obs_sample
         return len(self.obs_indices)
 
     def __getitem__(self, idx: int) -> Dict[str, Tensor]:  # type: ignore
-        actual_idx_obs = self.obs_indices[idx]
+        if self.n_obs_sample is None:
+            actual_idx_obs = self.obs_indices[idx]
+        else:
+            actual_idx_obs = self.obs_indices[torch.randint(len(self.obs_indices), (1,))]
+
         if self.n_var_sample is not None:
             actual_idx_var = self.var_indices[
                 torch.randperm(self.n_var)[: self.n_var_sample]
@@ -128,8 +138,3 @@ class RosaDataset(Dataset):
         item["mask"] = mask
         item["indices"] = actual_idx_var
         return item
-
-    def predict(
-        self, results: List[Tensor], prediction_layer: str = "predicted"
-    ) -> None:
-        self.adata.layers[prediction_layer] = torch.concat(results).detach_().numpy()
