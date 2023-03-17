@@ -44,7 +44,20 @@ class RosaDataModule(LightningDataModule):
             expression_transform_config=self.data_config.expression_transform,
         )
 
+        split = len(obs_indices_val) / (len(obs_indices_val) + len(obs_indices_train))
         self.val_dataset = RosaDataset(
+            adata,
+            var_input=self.data_config.var_input,
+            obs_indices=obs_indices_val,
+            var_indices=None,
+            n_var_sample=self.data_config.n_var_sample,
+            n_obs_sample=int(self.data_config.n_obs_sample * split),
+            mask=var_indices_val,
+            expression_layer=self.data_config.expression_layer,
+            expression_transform_config=self.data_config.expression_transform,
+        )
+
+        self.predict_dataset = RosaDataset(
             adata,
             var_input=self.data_config.var_input,
             obs_indices=obs_indices_val,
@@ -91,7 +104,7 @@ class RosaDataModule(LightningDataModule):
         if batch_size is None:
             batch_size = self.batch_size
         return DataLoader(
-            self.val_dataset,
+            self.predict_dataset,
             batch_size=self.batch_size,
             shuffle=False,
             num_workers=self.num_workers,

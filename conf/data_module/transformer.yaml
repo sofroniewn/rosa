@@ -6,7 +6,7 @@ data:
     total_counts: null
     log1p: null
     n_bins: 16
-    zero_bin: True
+    zero_bin: False
   n_var_sample: 12000
   n_obs_sample: 12000
   mask: 0.15

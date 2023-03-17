@@ -47,7 +47,7 @@ class Log1p(nn.Module):
 class QuantileNormalize(nn.Module):
     """Normalize a tensor by quantiles."""
 
-    def __init__(self, n_bins: int, zero_bin=True) -> None:
+    def __init__(self, n_bins: int, zero_bin: bool) -> None:
         super().__init__()
         self.n_bins = n_bins
         self.zero_bin = zero_bin
@@ -60,7 +60,17 @@ class QuantileNormalize(nn.Module):
             boundaries[-1] = torch.inf
             return torch.bucketize(tensor, boundaries, right=True) - 1
         else:
-            boundaries = torch.quantile(tensor, torch.linspace(0, 1, self.n_bins))
+            # boundaries = torch.quantile(tensor, torch.linspace(0, 1, self.n_bins))
+
+            # boundaries = [torch.tensor(0.0)]
+            # for q in range(self.n_bins - 1):
+            #     data_remaining = tensor[tensor>boundaries[-1]]
+            #     next_val = max(boundaries[-1]+1, torch.quantile(data_remaining, 1/(self.n_bins - q)))
+            #     boundaries.append(next_val)
+            # boundaries = torch.stack(boundaries, dim=0)
+
+            max_val = tensor.max() + 1
+            boundaries = torch.exp(torch.linspace(0, torch.log(max_val), self.n_bins))
             return torch.bucketize(tensor, boundaries)
 
 

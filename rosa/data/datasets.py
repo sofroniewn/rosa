@@ -129,7 +129,15 @@ class RosaDataset(Dataset):
         expression = self.transform(self.expression[actual_idx_obs])[actual_idx_var]
 
         if not isinstance(self.mask, Tensor):
-            mask = torch.rand(expression.shape) <= self.mask
+            # mask = torch.rand(expression.shape) <= self.mask
+
+            values, counts = torch.unique(expression, return_counts=True)
+            nbins = self.transform[-1].n_bins
+            bin_counts = torch.zeros(nbins, dtype=torch.long)
+            bin_counts[values] = counts
+            mask_indices = torch.multinomial(1 / bin_counts[expression], int(self.mask * len(expression)))
+            mask = torch.zeros(expression.shape, dtype=torch.bool)
+            mask[mask_indices] = True
         else:
             mask = self.mask[actual_idx_var]
 

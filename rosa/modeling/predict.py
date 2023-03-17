@@ -60,8 +60,8 @@ def predict(config: RosaConfig, chkpt: str) -> ad.AnnData:
     if not os.path.exists(output_dir):
         os.mkdir(output_dir)
     pred_writer = CustomWriter(output_dir=output_dir, write_interval="epoch")
-    # trainer = Trainer(accelerator=config.device, devices=config.num_devices, strategy=strategy, callbacks=[pred_writer])
-    # trainer.predict(rlm, rdm, return_predictions=False)
+    trainer = Trainer(accelerator=config.device, devices=config.num_devices, strategy=strategy, callbacks=[pred_writer])
+    trainer.predict(rlm, rdm, return_predictions=False)
 
     print('Generating predictions done')
     if rlm.global_rank == 0:
