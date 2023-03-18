@@ -80,7 +80,7 @@ def predict(config: RosaConfig, chkpt: str) -> ad.AnnData:
                 p, c = sample(batch['expression_predicted'], nbins=nbins)
                 predicted.append(p)
                 confidence.append(c)
-                measured.append(batch['expression'])
+                measured.append(batch['expression_target'])
                 obs_idx.append(batch['obs_idx'])
 
         obs_idx = torch.concat(obs_idx)

@@ -63,6 +63,6 @@ class MaskedEmbed(nn.Module):
             output = self.model(x0.unsqueeze_(-1)).squeeze(-2)
             output[mask] = self.mask.weight.T
         else:
-            x0[mask] = self.in_dim
+            # x0[mask] = self.in_dim
             output = self.model(x0)
         return output

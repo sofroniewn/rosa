@@ -30,7 +30,7 @@ class RosaLightningModule(LightningModule):
         return self.model.forward(batch)
 
     def training_step(self, batch, _):
-        expression = batch['expression'].clone().detach()
+        expression = batch['expression_target']
         batch['var_input'] = self.var_input[batch['indices']]
         expression_predicted = self(batch)
         expression_predicted = expression_predicted[batch['mask']]
@@ -40,7 +40,7 @@ class RosaLightningModule(LightningModule):
         return loss
 
     def validation_step(self, batch, _):
-        expression = batch['expression'].clone().detach()
+        expression = batch['expression_target']
         batch['var_input'] = self.var_input[batch['indices']]
         expression_predicted = self(batch)
         expression_predicted = expression_predicted[batch['mask']]
@@ -50,14 +50,14 @@ class RosaLightningModule(LightningModule):
         return loss
 
     def predict_step(self, batch, batch_idx, dataloader_idx=0):
-        expression = batch['expression'].clone().detach()
+        expression = batch['expression_target']
         batch['var_input'] = self.var_input[batch['indices']]
         expression_predicted = self(batch)
         batch_size = batch['mask'].shape[0]
         nbins = expression_predicted.shape[-1]
         results = {}
         results['expression_predicted'] = expression_predicted[batch['mask']].reshape(batch_size, -1, nbins)
-        results['expression'] = expression[batch['mask']].reshape(batch_size, -1)
+        results['expression_target'] = expression[batch['mask']].reshape(batch_size, -1)
         results['batch_idx'] = batch_idx
         results['dataloader_idx'] = dataloader_idx
         results["obs_idx"] = batch["obs_idx"]

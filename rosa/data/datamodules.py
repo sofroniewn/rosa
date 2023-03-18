@@ -34,6 +34,8 @@ class RosaDataModule(LightningDataModule):
 
         self.train_dataset = RosaDataset(
             adata,
+            pass_through=0.1,
+            corrupt=0.1,
             var_input=self.data_config.var_input,
             obs_indices=obs_indices_train,
             var_indices=var_indices_train,

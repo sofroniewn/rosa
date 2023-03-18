@@ -124,7 +124,7 @@ def plot_expression_and_correlation(
 
     # Subplot with correlation vs mean expression for genes
     axs[2, 1].plot(
-        adata.X.mean(axis=0), results["spearmanr_across_cells"], ".", alpha=0.1
+        X_meas.mean(axis=0), results["spearmanr_across_cells"], ".", alpha=0.1
     )
     axs[2, 1].set_xlabel("mean expression across cells (each data point is a gene)")
     axs[2, 1].set_ylabel("spearmanr across cells")

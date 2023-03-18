@@ -30,6 +30,8 @@ class RosaDataset(Dataset):
         adata: AnnData,
         *,
         var_input: str,
+        pass_through: float = 0,
+        corrupt: float = 0,
         n_var_sample: Optional[int] = None,
         n_obs_sample: Optional[int] = None,
         obs_indices: Optional[Tensor] = None,
@@ -40,6 +42,8 @@ class RosaDataset(Dataset):
     ) -> None:
 
         self.adata = adata
+        self.pass_through = pass_through
+        self.corrupt = corrupt
 
         # prepare expression, shape n_obs x n_var
         if expression_layer is None:
@@ -50,6 +54,7 @@ class RosaDataset(Dataset):
         if expression_transform_config is None:
             expression_transform_config = ExpressionTransformConfig()
         self.transform = ExpressionTransform(expression_transform_config)
+        self.n_bins = self.transform[-1].n_bins
 
         # prepare var input, shape n_var x var_dim
         if var_input in adata.varm.keys():
@@ -127,22 +132,33 @@ class RosaDataset(Dataset):
             actual_idx_var = self.var_indices
 
         expression = self.transform(self.expression[actual_idx_obs])[actual_idx_var]
+        expression_target = expression.clone().detach()
 
         if not isinstance(self.mask, Tensor):
             # mask = torch.rand(expression.shape) <= self.mask
 
             values, counts = torch.unique(expression, return_counts=True)
-            nbins = self.transform[-1].n_bins
-            bin_counts = torch.zeros(nbins, dtype=torch.long)
+            bin_counts = torch.zeros(self.n_bins, dtype=torch.long)
             bin_counts[values] = counts
             mask_indices = torch.multinomial(1 / bin_counts[expression], int(self.mask * len(expression)))
             mask = torch.zeros(expression.shape, dtype=torch.bool)
             mask[mask_indices] = True
+
+            mask_type = torch.rand(1)
+            if mask_type < self.pass_through:
+                pass
+            elif mask_type < self.pass_through + self.corrupt:
+                count_inds = torch.multinomial(counts.float(), len(mask_indices), replacement=True)
+                expression[mask] = values[count_inds]
+            else:
+                expression[mask] = self.n_bins
         else:
             mask = self.mask[actual_idx_var]
+            expression[mask] = self.n_bins
 
         item = dict()
-        item["expression"] = expression
+        item["expression_input"] = expression
+        item["expression_target"] = expression_target
         item["mask"] = mask
         item["indices"] = actual_idx_var
         item["obs_idx"] = actual_idx_obs

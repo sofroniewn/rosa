@@ -119,7 +119,7 @@ class RosaTransformer(nn.Module):
         self, batch: Dict[str, torch.Tensor]
     ) -> Union[torch.Tensor, torch.distributions.Distribution]:
         mask = batch['mask']
-        x = ((batch['expression'], batch['mask']), batch['var_input'])
+        x = ((batch['expression_input'], batch['mask']), batch['var_input'])
         x = self.main(x)  # type: ignore
         # attention mask is true for values where attention can look,
         # false for values that should be ignored
