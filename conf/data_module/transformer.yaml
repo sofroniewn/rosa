@@ -9,7 +9,9 @@ data:
     zero_bin: False
   n_var_sample: 12000
   n_obs_sample: 12000
-  mask: 0.15
-batch_size: 4
-accumulate: 2
-num_workers: 16 # 8 or 0
+  mask: 0.2
+  pass_through: 0.1
+  corrupt: 0.1
+batch_size: 2 # 4 or 2
+accumulate: 8 # 2 or 8
+num_workers: 0 # 16 or 0

@@ -31,42 +31,54 @@ class RosaDataModule(LightningDataModule):
         var_indices_train = torch.Tensor(np.where(adata.var["train"])[0])
         obs_indices_val = torch.Tensor(np.where(np.logical_not(adata.obs["train"]))[0])
         var_indices_val = torch.Tensor(np.where(np.logical_not(adata.var["train"]))[0])
+        split = len(obs_indices_val) / (len(obs_indices_val) + len(obs_indices_train))
 
         self.train_dataset = RosaDataset(
             adata,
-            pass_through=0.1,
+            mask=self.data_config.mask,
+            pass_through=self.data_config.pass_through,
             corrupt=0.1,
             var_input=self.data_config.var_input,
             obs_indices=obs_indices_train,
             var_indices=var_indices_train,
+            mask_indices=None,
             n_var_sample=self.data_config.n_var_sample,
             n_obs_sample=self.data_config.n_obs_sample,
-            mask=self.data_config.mask,
             expression_layer=self.data_config.expression_layer,
             expression_transform_config=self.data_config.expression_transform,
         )
 
-        split = len(obs_indices_val) / (len(obs_indices_val) + len(obs_indices_train))
+        if self.data_config.n_obs_sample is not None:
+            n_obs_sample = int(self.data_config.n_obs_sample * split)
+        else:
+            n_obs_sample = None
+
         self.val_dataset = RosaDataset(
             adata,
+            mask=self.data_config.mask,
+            pass_through=self.data_config.pass_through,
+            corrupt=self.data_config.corrupt,
             var_input=self.data_config.var_input,
             obs_indices=obs_indices_val,
             var_indices=None,
+            mask_indices=var_indices_val,
             n_var_sample=self.data_config.n_var_sample,
-            n_obs_sample=int(self.data_config.n_obs_sample * split),
-            mask=var_indices_val,
+            n_obs_sample=n_obs_sample,
             expression_layer=self.data_config.expression_layer,
             expression_transform_config=self.data_config.expression_transform,
         )
 
         self.predict_dataset = RosaDataset(
             adata,
+            mask=1,
+            pass_through=0,
+            corrupt=0,
             var_input=self.data_config.var_input,
             obs_indices=obs_indices_val,
             var_indices=None,
             n_var_sample=None,
             n_obs_sample=None,
-            mask=var_indices_val,
+            mask_indices=var_indices_val,
             expression_layer=self.data_config.expression_layer,
             expression_transform_config=self.data_config.expression_transform,
         )

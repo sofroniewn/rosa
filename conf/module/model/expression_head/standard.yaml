@@ -1,4 +1,0 @@
-projection: True
-activation: softplus
-likelihood: null
-library_size: null

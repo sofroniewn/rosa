@@ -3,10 +3,10 @@ layer_norm: null
 layer_norm_1: null
 n_bins: ${data_module.data.expression_transform.n_bins}
 transformer:
-  dim: 320
-  heads: 10
-  dim_head: 64
-  depth: 6
+  dim: 64
+  heads: 4
+  dim_head: 16
+  depth: 2
   dropout: 0.1
 input_embed:
   layer_norm: False

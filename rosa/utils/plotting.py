@@ -1,17 +1,16 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import scanpy as sc
-from sklearn.metrics import confusion_matrix
 
 
 def plot_marker_gene_heatmap(
     adata,
     marker_genes,
     output_layer: str = "predicted",
-    target_layer="measured",
-    max_expression_val: int = 6,
+    target_layer="target",
 ):
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 12), gridspec_kw={"wspace": 0})
+    max_expression_val = adata.uns['nbins']
     sc.pl.matrixplot(
         adata,
         marker_genes,
@@ -53,81 +52,41 @@ def plot_marker_gene_heatmap(
 
 
 def plot_expression_and_correlation(
-    adata,
-    results,
-    output_layer="predicted",
-    target_layer="measured",
-    max_expression_val: int = 6,
-    nbins: int = None,
+    results
 ):
-    _, axs = plt.subplots(3, 2, figsize=(14, 13), gridspec_kw={"wspace": 0.2})
+    _, axs = plt.subplots(2, 2, figsize=(14, 8), gridspec_kw={"wspace": 0.2})
 
-    if target_layer is None:
-        X_meas = adata.X
-    else:
-        X_meas = adata.layers[target_layer]
-    X_pred = adata.layers[output_layer]
+    cm = results['confusion_matrix']
+    total = cm.sum()
+    nbins = cm.shape[0]
 
-    # Subplot with expression histograms
-    if nbins is None:
-        bins = np.linspace(0, max_expression_val, 200)
-        ylim = [0, 1]
-        xlim = [0, max_expression_val]
-    else:
-        bins = np.arange(nbins + 1) - 0.5
-        ylim = [0, 1 / nbins * 2.5]
-        xlim = [-0.5, nbins-0.5]
-    axs[0, 0].hist(X_meas.flatten(), bins=bins, density=True)
-    axs[0, 0].hist(X_pred.flatten(), bins=bins, density=True, alpha=0.5)
+    bins = np.arange(nbins)
+    ylim = [0, 1 / nbins * 2.5]
+    xlim = [-0.5, nbins-0.5]
+    axs[0, 0].bar(bins, cm.sum(axis=1) / total) # target
+    axs[0, 0].bar(bins, cm.sum(axis=0) / total, alpha=0.5) # predicted
     axs[0, 0].set_ylim(ylim)
     axs[0, 0].set_xlim(xlim)
     axs[0, 0].set_xlabel("expression")
 
-    if nbins is None:
-        # Subplot with expression scatter
-        axs[0, 1].plot(X_meas.flatten(), X_pred.flatten(), ".", alpha=0.01)
-        axs[0, 1].plot(
-            xlim,
-            xlim,
-            "k",
-            linewidth="2",
-            linestyle="--",
-        )
-        axs[0, 1].set_xlim(xlim)
-        axs[0, 1].set_ylim(xlim)
-        axs[0, 1].set_aspect("equal", adjustable="box")
-        axs[0, 1].set_xlabel("expression measured")
-        axs[0, 1].set_ylabel("expression predicted")
-    else:
-        # Subplot with confusion matrix
-        cm = confusion_matrix(X_meas.flatten(), X_pred.flatten(), labels=list(range(nbins)), normalize='true')
-        axs[0, 1].imshow(cm)
-        axs[0, 1].set_xlim(xlim)
-        axs[0, 1].set_ylim(xlim)
-        axs[0, 1].set_aspect("equal", adjustable="box")
-        axs[0, 1].set_xlabel("expression predicted")
-        axs[0, 1].set_ylabel("expression measured")
+    # Subplot with confusion matrix
+    axs[0, 1].imshow(cm / cm.sum(axis=1)[:, np.newaxis])
+    axs[0, 1].set_xlim(xlim)
+    axs[0, 1].set_ylim(xlim)
+    axs[0, 1].set_aspect("equal", adjustable="box")
+    axs[0, 1].set_xlabel("expression predicted")
+    axs[0, 1].set_ylabel("expression target")
 
     # Subplot with correlation across genes
     axs[1, 0].hist(
-        results["spearmanr_across_genes"], bins=np.linspace(0, 1, 50), density=True
+        results["spearman_obs"], bins=np.linspace(0, 1, 50), density=True
     )
     axs[1, 0].set_xlabel("spearmanr across genes (each data point is a cell)")
     axs[1, 0].set_xlim([0, 1])
 
     # Subplot with correlation across genes
     axs[1, 1].hist(
-        results["spearmanr_across_cells"], bins=np.linspace(0, 1, 100), density=True
+        results["spearman_var"], bins=np.linspace(0, 1, 100), density=True
     )
     axs[1, 1].set_xlabel("spearmanr across cells (each data point is a gene)")
     axs[1, 1].set_xlim([0, 1])
-
-    # Subplot with correlation vs mean expression for genes
-    axs[2, 1].plot(
-        X_meas.mean(axis=0), results["spearmanr_across_cells"], ".", alpha=0.1
-    )
-    axs[2, 1].set_xlabel("mean expression across cells (each data point is a gene)")
-    axs[2, 1].set_ylabel("spearmanr across cells")
-    axs[2, 1].set_xlim(xlim)
-
-    axs[2, 0].set_visible(False)

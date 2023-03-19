@@ -19,10 +19,7 @@ class RosaLightningModule(LightningModule):
             in_dim=var_input.shape[1],
             config=config.model,
         )
-        if var_input is not None:
-            self.register_buffer("var_input", var_input)
-        else:
-            self.var_input = None
+        self.register_buffer("var_input", var_input)
         self.learning_rate = config.learning_rate
         self.criterion = criterion_factory(config.criterion)
 

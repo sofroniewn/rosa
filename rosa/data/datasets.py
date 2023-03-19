@@ -17,12 +17,6 @@ warnings.simplefilter(action="ignore", category=FutureWarning)
 
 class RosaDataset(Dataset):
     """Return masked expression vectors iterating over cells
-
-    When used with a batch of cell, returns data as ((BxG, BxG), BxGxGE), BxG)
-    where B is number of cells in batch, G is number of genes,
-    GE is length of gene embedding. The first (BxG, BxG) is the input expression,
-    and masking matrix, the BxGxGE are the gene embeddings, and the BxG is
-    the target expression to be predicted.
     """
 
     def __init__(
@@ -32,11 +26,12 @@ class RosaDataset(Dataset):
         var_input: str,
         pass_through: float = 0,
         corrupt: float = 0,
+        mask: float = 0,
         n_var_sample: Optional[int] = None,
         n_obs_sample: Optional[int] = None,
         obs_indices: Optional[Tensor] = None,
         var_indices: Optional[Tensor] = None,
-        mask: Optional[Union[float, List, Tensor]] = None,
+        mask_indices: Optional[Tensor] = None,
         expression_layer: Optional[str] = None,
         expression_transform_config: Optional[ExpressionTransformConfig] = None,
     ) -> None:
@@ -44,6 +39,7 @@ class RosaDataset(Dataset):
         self.adata = adata
         self.pass_through = pass_through
         self.corrupt = corrupt
+        self.mask = mask
 
         # prepare expression, shape n_obs x n_var
         if expression_layer is None:
@@ -100,25 +96,19 @@ class RosaDataset(Dataset):
         self.n_obs_sample = n_obs_sample
         self.n_var = len(self.var_indices)
 
-        # Create mask
-        if mask is None:
-            self.mask = torch.zeros(
-                self.var_input.shape[0], dtype=torch.bool
-            )  # type: Union[float, Tensor]
-        elif isinstance(mask, float):
-            self.mask = mask
-        elif isinstance(mask, List) or isinstance(mask, Tensor):
-            self.mask = torch.zeros(self.var_input.shape[0], dtype=torch.bool)
-            self.mask[torch.tensor(mask).long()] = True
+        # Mask indices are the var indices that are allowed to be masked
+        if mask_indices is None:
+            self.mask_bool = torch.ones(self.expression.shape[1], dtype=torch.bool)
         else:
-            raise ValueError("Unrecognized masking type")
+            self.mask_bool = torch.zeros(self.expression.shape[1], dtype=torch.bool)
+            self.mask_bool[mask_indices.long()] = True
 
     def __len__(self) -> int:
         if self.n_obs_sample is not None:
             return self.n_obs_sample
         return len(self.obs_indices)
 
-    def __getitem__(self, idx: int) -> Dict[str, Tensor]:  # type: ignore
+    def __getitem__(self, idx: int) -> Dict[str, Tensor]:
         if self.n_obs_sample is None:
             actual_idx_obs = self.obs_indices[idx]
         else:
@@ -134,27 +124,37 @@ class RosaDataset(Dataset):
         expression = self.transform(self.expression[actual_idx_obs])[actual_idx_var]
         expression_target = expression.clone().detach()
 
-        if not isinstance(self.mask, Tensor):
-            # mask = torch.rand(expression.shape) <= self.mask
-
-            values, counts = torch.unique(expression, return_counts=True)
-            bin_counts = torch.zeros(self.n_bins, dtype=torch.long)
-            bin_counts[values] = counts
-            mask_indices = torch.multinomial(1 / bin_counts[expression], int(self.mask * len(expression)))
+        if self.mask == 0:
+            # Mask no values
             mask = torch.zeros(expression.shape, dtype=torch.bool)
-            mask[mask_indices] = True
-
-            mask_type = torch.rand(1)
-            if mask_type < self.pass_through:
-                pass
-            elif mask_type < self.pass_through + self.corrupt:
-                count_inds = torch.multinomial(counts.float(), len(mask_indices), replacement=True)
-                expression[mask] = values[count_inds]
-            else:
-                expression[mask] = self.n_bins
+            mask_indices = []
+        elif self.mask == 1:
+            # Mask all allowed values
+            mask = self.mask_bool[actual_idx_var]
+            mask_indices = torch.where(mask)[0]
         else:
-            mask = self.mask[actual_idx_var]
-            expression[mask] = self.n_bins
+            mask = self.mask_bool[actual_idx_var]
+            mask_indices = torch.where(mask)[0]
+            if len(mask_indices) > 0:
+                # Mask fraction of allowed values
+                values, counts = torch.unique(expression[mask_indices], return_counts=True)
+                bin_counts = torch.zeros(self.n_bins, dtype=torch.long)
+                bin_counts[values] = counts
+                use_mask_indices = torch.multinomial(1 / bin_counts[expression[mask_indices]], int(self.mask * len(mask_indices)))
+                mask_indices = mask_indices[use_mask_indices]
+                mask = torch.zeros(expression.shape, dtype=torch.bool)
+                mask[mask_indices] = True
+
+        # Pass, corrupt, or mask expression values
+        num_pass = int(self.pass_through * len(mask_indices))
+        num_corrput = int(self.corrupt * len(mask_indices))
+        if num_corrput > 0:
+            # corrupt to values at rates proportial to their observed counts
+            values, counts = torch.unique(expression, return_counts=True)
+            count_inds = torch.multinomial(counts.float(), num_corrput, replacement=True)
+            expression[mask_indices[num_pass: num_pass + num_corrput]] = values[count_inds]
+        if len(mask_indices) > num_pass + num_corrput:
+            expression[mask_indices[num_pass + num_corrput :]] = self.n_bins
 
         item = dict()
         item["expression_input"] = expression

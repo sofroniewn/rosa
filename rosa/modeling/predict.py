@@ -72,7 +72,7 @@ def predict(config: RosaConfig, chkpt: str) -> ad.AnnData:
 
         predicted = []
         confidence = []
-        measured = []
+        target = []
         obs_idx = []
         nbins = config.data_module.data.expression_transform.n_bins
         for device in results:
@@ -80,28 +80,27 @@ def predict(config: RosaConfig, chkpt: str) -> ad.AnnData:
                 p, c = sample(batch['expression_predicted'], nbins=nbins)
                 predicted.append(p)
                 confidence.append(c)
-                measured.append(batch['expression_target'])
+                target.append(batch['expression_target'])
                 obs_idx.append(batch['obs_idx'])
 
         obs_idx = torch.concat(obs_idx)
         order = torch.argsort(obs_idx)
 
         confidence = torch.concat(confidence)[order]
-        measured = torch.concat(measured)[order]
+        target = torch.concat(target)[order]
         predicted = torch.concat(predicted)[order]
 
-        obs_indices = rdm.val_dataset.obs_indices.detach_().numpy()
-        var_bool = rdm.val_dataset.mask.detach_().numpy()
+        print('Scoring predictions')
+        results = score_predictions(predicted, target, nbins=nbins)
 
+        print('Assembling anndata object')
         adata = rdm.val_dataset.adata
+        obs_indices = rdm.val_dataset.obs_indices.detach().numpy()
+        var_bool = rdm.val_dataset.mask_bool.detach().numpy()
         adata_predict = adata[obs_indices, var_bool]
-        adata_predict.layers["confidence"] = confidence.detach_().numpy()
-        adata_predict.layers["measured"] = measured.detach_().numpy()
-        adata_predict.layers["predicted"] = predicted.detach_().numpy()
-
-        print('Scoring predicted adata')
-
-        results = score_predictions(adata_predict, nbins=nbins)
+        adata_predict.layers["confidence"] = confidence.detach().numpy()
+        adata_predict.layers["target"] = target.detach().numpy()
+        adata_predict.layers["predicted"] = predicted.detach().numpy()
         adata_predict.uns['results'] = results
         adata_predict.uns['nbins'] = nbins
 
@@ -109,3 +108,4 @@ def predict(config: RosaConfig, chkpt: str) -> ad.AnnData:
         output_path = str(rdm.adata_path.with_name(rdm.adata_path.stem + '__processed.h5ad'))
         print(output_path)
         adata_predict.write_h5ad(output_path)
+        print('Finished')

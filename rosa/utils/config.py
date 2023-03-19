@@ -86,11 +86,9 @@ class DataConfig:
     expression_transform: Optional[ExpressionTransformConfig] = None
     n_var_sample: Optional[int] = None
     n_obs_sample: Optional[int] = None
-    mask: Optional[float] = None
-
-
-#     n_obs_item: Optional[int] # If null return all obs, otherwise item will contain requested number of obs
-#     n_var_item: Optional[int] # If null return all var, otherwise item will contain requested number of var
+    mask: float = 0
+    pass_through: float = 0
+    corrupt: float = 0
 
 
 @dataclass

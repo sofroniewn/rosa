@@ -15,7 +15,7 @@ preprocessing:
     # pcs: 256
     # key: train
   bulk_data:
-    sample_col: single_cell # Use donor_id or dataset_id or single_cell
+    sample_col: donor_id # Use donor_id or dataset_id or single_cell
     label_col: cell_type
     min_cells: 50
   filter:
@@ -39,7 +39,7 @@ module:
   criterion:
     loss_function: ce
 device: cuda # cuda or cpu
-num_devices: 8 # 8 or 1
+num_devices: 1 # 8 or 1
 gradient_clip_val: 10
 defaults:
   - data_module: transformer
