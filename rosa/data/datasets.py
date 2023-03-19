@@ -16,8 +16,7 @@ warnings.simplefilter(action="ignore", category=FutureWarning)
 
 
 class RosaDataset(Dataset):
-    """Return masked expression vectors iterating over cells
-    """
+    """Return masked expression vectors iterating over cells"""
 
     def __init__(
         self,
@@ -112,7 +111,9 @@ class RosaDataset(Dataset):
         if self.n_obs_sample is None:
             actual_idx_obs = self.obs_indices[idx]
         else:
-            actual_idx_obs = self.obs_indices[torch.randint(len(self.obs_indices), (1,))]
+            actual_idx_obs = self.obs_indices[
+                torch.randint(len(self.obs_indices), (1,))
+            ]
 
         if self.n_var_sample is not None:
             actual_idx_var = self.var_indices[
@@ -137,10 +138,15 @@ class RosaDataset(Dataset):
             mask_indices = torch.where(mask)[0]
             if len(mask_indices) > 0:
                 # Mask fraction of allowed values
-                values, counts = torch.unique(expression[mask_indices], return_counts=True)
+                values, counts = torch.unique(
+                    expression[mask_indices], return_counts=True
+                )
                 bin_counts = torch.zeros(self.n_bins, dtype=torch.long)
                 bin_counts[values] = counts
-                use_mask_indices = torch.multinomial(1 / bin_counts[expression[mask_indices]], int(self.mask * len(mask_indices)))
+                use_mask_indices = torch.multinomial(
+                    1 / bin_counts[expression[mask_indices]],
+                    int(self.mask * len(mask_indices)),
+                )
                 mask_indices = mask_indices[use_mask_indices]
                 mask = torch.zeros(expression.shape, dtype=torch.bool)
                 mask[mask_indices] = True
@@ -148,11 +154,15 @@ class RosaDataset(Dataset):
         # Pass, corrupt, or mask expression values
         num_pass = int(self.pass_through * len(mask_indices))
         num_corrput = int(self.corrupt * len(mask_indices))
-        if num_corrput > 0:
+        if num_corrput > 0 and len(mask_indices) >= num_pass + num_corrput:
             # corrupt to values at rates proportial to their observed counts
             values, counts = torch.unique(expression, return_counts=True)
-            count_inds = torch.multinomial(counts.float(), num_corrput, replacement=True)
-            expression[mask_indices[num_pass: num_pass + num_corrput]] = values[count_inds]
+            count_inds = torch.multinomial(
+                counts.float(), num_corrput, replacement=True
+            )
+            expression[mask_indices[num_pass : num_pass + num_corrput]] = values[
+                count_inds
+            ]
         if len(mask_indices) > num_pass + num_corrput:
             expression[mask_indices[num_pass + num_corrput :]] = self.n_bins
 

@@ -10,7 +10,7 @@ def plot_marker_gene_heatmap(
     target_layer="target",
 ):
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 12), gridspec_kw={"wspace": 0})
-    max_expression_val = adata.uns['nbins']
+    max_expression_val = adata.uns["nbins"]
     sc.pl.matrixplot(
         adata,
         marker_genes,
@@ -51,20 +51,18 @@ def plot_marker_gene_heatmap(
     fig.axes[-1].set_yticklabels([])
 
 
-def plot_expression_and_correlation(
-    results
-):
+def plot_expression_and_correlation(results):
     _, axs = plt.subplots(2, 2, figsize=(14, 8), gridspec_kw={"wspace": 0.2})
 
-    cm = results['confusion_matrix']
+    cm = results["confusion_matrix"]
     total = cm.sum()
     nbins = cm.shape[0]
 
     bins = np.arange(nbins)
     ylim = [0, 1 / nbins * 2.5]
-    xlim = [-0.5, nbins-0.5]
-    axs[0, 0].bar(bins, cm.sum(axis=1) / total) # target
-    axs[0, 0].bar(bins, cm.sum(axis=0) / total, alpha=0.5) # predicted
+    xlim = [-0.5, nbins - 0.5]
+    axs[0, 0].bar(bins, cm.sum(axis=1) / total)  # target
+    axs[0, 0].bar(bins, cm.sum(axis=0) / total, alpha=0.5)  # predicted
     axs[0, 0].set_ylim(ylim)
     axs[0, 0].set_xlim(xlim)
     axs[0, 0].set_xlabel("expression")
@@ -78,15 +76,11 @@ def plot_expression_and_correlation(
     axs[0, 1].set_ylabel("expression target")
 
     # Subplot with correlation across genes
-    axs[1, 0].hist(
-        results["spearman_obs"], bins=np.linspace(0, 1, 50), density=True
-    )
+    axs[1, 0].hist(results["spearman_obs"], bins=np.linspace(0, 1, 50), density=True)
     axs[1, 0].set_xlabel("spearmanr across genes (each data point is a cell)")
     axs[1, 0].set_xlim([0, 1])
 
     # Subplot with correlation across genes
-    axs[1, 1].hist(
-        results["spearman_var"], bins=np.linspace(0, 1, 100), density=True
-    )
+    axs[1, 1].hist(results["spearman_var"], bins=np.linspace(0, 1, 100), density=True)
     axs[1, 1].set_xlabel("spearmanr across cells (each data point is a gene)")
     axs[1, 1].set_xlim([0, 1])

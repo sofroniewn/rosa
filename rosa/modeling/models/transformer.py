@@ -6,11 +6,7 @@ import torch.nn as nn
 from performer_pytorch import Performer
 
 from ...utils.config import ModelConfig
-from .components import (
-    InputEmbed,
-    BinnedEmbed,
-    ProjectionExpressionHead,
-)
+from .components import BinnedEmbed, InputEmbed, ProjectionExpressionHead
 
 
 class RosaTransformer(nn.Module):
@@ -36,7 +32,9 @@ class RosaTransformer(nn.Module):
 
         embedding_dim_0 = config.input_embed.embedding_dim
         n_bins = config.n_bins
-        self.expression_embedding = BinnedEmbed(n_bins + 1, embedding_dim_0, config=config.input_embed)
+        self.expression_embedding = BinnedEmbed(
+            n_bins + 1, embedding_dim_0, config=config.input_embed
+        )
 
         # Determine embedding dimension if embedding provided for second input
         if config.input_embed_1 is None:
@@ -50,12 +48,12 @@ class RosaTransformer(nn.Module):
 
         self.var_embedding = nn.Sequential(
             OrderedDict(
-                    [
-                        ("layer_norm_1", layer_norm_nn_1),
-                        ("input_embed_1", input_embed_1),
-                    ]
-                )
+                [
+                    ("layer_norm_1", layer_norm_nn_1),
+                    ("input_embed_1", input_embed_1),
+                ]
             )
+        )
 
         # Add transformer if provided
         if config.transformer is None:
@@ -84,14 +82,14 @@ class RosaTransformer(nn.Module):
         self, batch: Dict[str, torch.Tensor]
     ) -> Union[torch.Tensor, torch.distributions.Distribution]:
         # Embedd expression and var
-        expression = self.expression_embedding(batch['expression_input'])
-        var = self.var_embedding(batch['var_input'])
+        expression = self.expression_embedding(batch["expression_input"])
+        var = self.var_embedding(batch["var_input"])
 
         # Sum embeddings
         x = expression + var
 
         # attention mask is true for values where attention can look,
         # false for values that should be ignored
-        x = self.transformer(x, mask=~batch['mask'])   # type: ignore
-        x = self.dropout(x)   # type: ignore
-        return self.expression_head(x)   # type: ignore
+        x = self.transformer(x, mask=~batch["mask"])  # type: ignore
+        x = self.dropout(x)  # type: ignore
+        return self.expression_head(x)  # type: ignore

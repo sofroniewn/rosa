@@ -2,10 +2,10 @@ import math
 from dataclasses import dataclass
 from typing import Tuple, Union
 
-import torch
-from enformer_pytorch import FastaInterval
 import anndata as ad
 import pandas as pd
+import torch
+from enformer_pytorch import FastaInterval
 from tqdm import tqdm
 
 

@@ -2,10 +2,10 @@ from dataclasses import dataclass
 from typing import List, Optional, Union
 
 import numpy as np
-from scipy.sparse import csr_matrix
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from scipy.sparse import csr_matrix
 
 from ..utils.config import ExpressionTransformConfig
 
@@ -55,7 +55,9 @@ class QuantileNormalize(nn.Module):
     def forward(self, tensor: torch.Tensor) -> torch.Tensor:
         if self.zero_bin:
             # Put all zero values in their own bin and then distribute others evenly
-            boundaries = torch.quantile(tensor[tensor>0], torch.linspace(0, 1, self.n_bins))
+            boundaries = torch.quantile(
+                tensor[tensor > 0], torch.linspace(0, 1, self.n_bins)
+            )
             boundaries = torch.concat([torch.tensor([0]), boundaries])
             boundaries[-1] = torch.inf
             return torch.bucketize(tensor, boundaries, right=True) - 1
@@ -75,14 +77,17 @@ class QuantileNormalize(nn.Module):
             boundaries = [torch.tensor(0.0)]
             min_step_size = 0.1
             for q in range(self.n_bins - 1):
-                data_remaining = tensor[tensor>boundaries[-1]]
+                data_remaining = tensor[tensor > boundaries[-1]]
                 n_data_remaining = len(data_remaining)
                 if n_data_remaining == 0:
                     next_val = boundaries[-1]
                 else:
                     n_bins_remaining = self.n_bins - q - 1
                     next_quantile = 1 / n_bins_remaining
-                    next_val = max(boundaries[-1] + min_step_size, torch.quantile(data_remaining, next_quantile))
+                    next_val = max(
+                        boundaries[-1] + min_step_size,
+                        torch.quantile(data_remaining, next_quantile),
+                    )
                 boundaries.append(next_val)
             boundaries = torch.stack(boundaries, dim=0)
             return torch.bucketize(tensor, boundaries)

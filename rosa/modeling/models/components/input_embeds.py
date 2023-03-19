@@ -1,5 +1,5 @@
 from collections import OrderedDict
-from typing import Tuple, Optional, Union
+from typing import Optional, Tuple, Union
 
 import torch
 import torch.nn as nn
@@ -50,4 +50,4 @@ class BinnedEmbed(nn.Module):
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return  self.model(x)
+        return self.model(x)

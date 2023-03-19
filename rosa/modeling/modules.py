@@ -27,36 +27,40 @@ class RosaLightningModule(LightningModule):
         return self.model.forward(batch)
 
     def training_step(self, batch, _):
-        expression = batch['expression_target']
-        batch['var_input'] = self.var_input[batch['indices']]
+        expression = batch["expression_target"]
+        batch["var_input"] = self.var_input[batch["indices"]]
         expression_predicted = self(batch)
-        expression_predicted = expression_predicted[batch['mask']]
-        expression = expression[batch['mask']]
+        expression_predicted = expression_predicted[batch["mask"]]
+        expression = expression[batch["mask"]]
         loss = self.criterion(expression_predicted, expression)
         self.log("train_loss", loss, on_epoch=True, prog_bar=True, logger=True)
         return loss
 
     def validation_step(self, batch, _):
-        expression = batch['expression_target']
-        batch['var_input'] = self.var_input[batch['indices']]
+        expression = batch["expression_target"]
+        batch["var_input"] = self.var_input[batch["indices"]]
         expression_predicted = self(batch)
-        expression_predicted = expression_predicted[batch['mask']]
-        expression = expression[batch['mask']]
+        expression_predicted = expression_predicted[batch["mask"]]
+        expression = expression[batch["mask"]]
         loss = self.criterion(expression_predicted, expression)
-        self.log("val_loss", loss, on_epoch=True, prog_bar=True, logger=True, sync_dist=True)
+        self.log(
+            "val_loss", loss, on_epoch=True, prog_bar=True, logger=True, sync_dist=True
+        )
         return loss
 
     def predict_step(self, batch, batch_idx, dataloader_idx=0):
-        expression = batch['expression_target']
-        batch['var_input'] = self.var_input[batch['indices']]
+        expression = batch["expression_target"]
+        batch["var_input"] = self.var_input[batch["indices"]]
         expression_predicted = self(batch)
-        batch_size = batch['mask'].shape[0]
+        batch_size = batch["mask"].shape[0]
         nbins = expression_predicted.shape[-1]
         results = {}
-        results['expression_predicted'] = expression_predicted[batch['mask']].reshape(batch_size, -1, nbins)
-        results['expression_target'] = expression[batch['mask']].reshape(batch_size, -1)
-        results['batch_idx'] = batch_idx
-        results['dataloader_idx'] = dataloader_idx
+        results["expression_predicted"] = expression_predicted[batch["mask"]].reshape(
+            batch_size, -1, nbins
+        )
+        results["expression_target"] = expression[batch["mask"]].reshape(batch_size, -1)
+        results["batch_idx"] = batch_idx
+        results["dataloader_idx"] = dataloader_idx
         results["obs_idx"] = batch["obs_idx"]
         return results
 

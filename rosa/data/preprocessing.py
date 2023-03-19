@@ -12,18 +12,10 @@ from omegaconf import OmegaConf
 from sklearn.decomposition import PCA
 from tqdm import tqdm
 
-from ..utils.config import (
-    BulkDataConfig,
-    CellEmbeddingsConfig,
-    ExpressionTransformConfig,
-    FilterConfig,
-    GeneEmbeddingsConfig,
-    MarkerGeneConfig,
-    PathConfig,
-    PreProcessingConfig,
-    RosaConfig,
-    SplitConfig,
-)
+from ..utils.config import (BulkDataConfig, CellEmbeddingsConfig,
+                            ExpressionTransformConfig, FilterConfig,
+                            GeneEmbeddingsConfig, MarkerGeneConfig, PathConfig,
+                            PreProcessingConfig, RosaConfig, SplitConfig)
 
 
 def _add_gene_embeddings(
@@ -241,10 +233,11 @@ def add_rank_genes_groups_markers(
     markers = {}  # type: Dict[str, str]
     expression_thresh = config.mean_expression_threshold
     mean_expression = np.squeeze(np.array(adata.X.mean(axis=0)))
-    
+
     test_genes = adata.var[
         np.logical_and(
-            np.logical_not(adata.var["train"]), mean_expression > np.quantile(mean_expression, expression_thresh)
+            np.logical_not(adata.var["train"]),
+            mean_expression > np.quantile(mean_expression, expression_thresh),
         )
     ].index
     for c in adata.uns["rank_genes_groups"]["names"].dtype.names:
@@ -329,7 +322,7 @@ def reconstruct_expression(
 def bulk_data(adata: ad.AnnData, config: BulkDataConfig) -> ad.AnnData:
     # Note that genes with no samples will be dropped
     # padata = average_expression_per_feature(adata, config.label_col)
-    if config.sample_col != 'single_cell':
+    if config.sample_col != "single_cell":
         padata = dc.get_pseudobulk(
             adata,
             sample_col=config.sample_col,
