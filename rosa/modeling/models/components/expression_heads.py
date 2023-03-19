@@ -4,8 +4,10 @@ from typing import Tuple, Union
 import torch
 import torch.nn as nn
 
-from ....utils.config import (ExpressionHeadActivations,  # type: ignore
-                              ExpressionHeadConfig)
+from ....utils.config import (
+    ExpressionHeadActivations,  # type: ignore
+    ExpressionHeadConfig,
+)
 
 
 class ProjectionExpressionHead(nn.Module):

@@ -35,7 +35,7 @@ class RosaDataModule(LightningDataModule):
 
         self.train_dataset = RosaDataset(
             adata,
-            mask=self.data_config.mask,
+            mask_fraction=self.data_config.mask,
             pass_through=self.data_config.pass_through,
             corrupt=0.1,
             var_input=self.data_config.var_input,
@@ -55,7 +55,7 @@ class RosaDataModule(LightningDataModule):
 
         self.val_dataset = RosaDataset(
             adata,
-            mask=self.data_config.mask,
+            mask_fraction=self.data_config.mask,
             pass_through=self.data_config.pass_through,
             corrupt=self.data_config.corrupt,
             var_input=self.data_config.var_input,
@@ -70,9 +70,9 @@ class RosaDataModule(LightningDataModule):
 
         self.predict_dataset = RosaDataset(
             adata,
-            mask=1,
-            pass_through=0,
-            corrupt=0,
+            mask_fraction=1.0,
+            pass_through=0.0,
+            corrupt=0.0,
             var_input=self.data_config.var_input,
             obs_indices=obs_indices_val,
             var_indices=None,

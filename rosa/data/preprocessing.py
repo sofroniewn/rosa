@@ -12,10 +12,18 @@ from omegaconf import OmegaConf
 from sklearn.decomposition import PCA
 from tqdm import tqdm
 
-from ..utils.config import (BulkDataConfig, CellEmbeddingsConfig,
-                            ExpressionTransformConfig, FilterConfig,
-                            GeneEmbeddingsConfig, MarkerGeneConfig, PathConfig,
-                            PreProcessingConfig, RosaConfig, SplitConfig)
+from ..utils.config import (
+    BulkDataConfig,
+    CellEmbeddingsConfig,
+    ExpressionTransformConfig,
+    FilterConfig,
+    GeneEmbeddingsConfig,
+    MarkerGeneConfig,
+    PathConfig,
+    PreProcessingConfig,
+    RosaConfig,
+    SplitConfig,
+)
 
 
 def _add_gene_embeddings(

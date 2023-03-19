@@ -28,7 +28,7 @@ class RosaLightningModule(LightningModule):
 
     def training_step(self, batch, _):
         expression = batch["expression_target"]
-        batch["var_input"] = self.var_input[batch["indices"]]
+        batch["var_input"] = self.var_input[batch["var_indices"]]
         expression_predicted = self(batch)
         expression_predicted = expression_predicted[batch["mask"]]
         expression = expression[batch["mask"]]
@@ -38,7 +38,7 @@ class RosaLightningModule(LightningModule):
 
     def validation_step(self, batch, _):
         expression = batch["expression_target"]
-        batch["var_input"] = self.var_input[batch["indices"]]
+        batch["var_input"] = self.var_input[batch["var_indices"]]
         expression_predicted = self(batch)
         expression_predicted = expression_predicted[batch["mask"]]
         expression = expression[batch["mask"]]
@@ -50,7 +50,7 @@ class RosaLightningModule(LightningModule):
 
     def predict_step(self, batch, batch_idx, dataloader_idx=0):
         expression = batch["expression_target"]
-        batch["var_input"] = self.var_input[batch["indices"]]
+        batch["var_input"] = self.var_input[batch["var_indices"]]
         expression_predicted = self(batch)
         batch_size = batch["mask"].shape[0]
         nbins = expression_predicted.shape[-1]

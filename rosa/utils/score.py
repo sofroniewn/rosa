@@ -1,8 +1,12 @@
 import torch
 from torchmetrics.functional import spearman_corrcoef
 from torchmetrics.functional.classification import (
-    multiclass_accuracy, multiclass_confusion_matrix, multiclass_f1_score,
-    multiclass_precision, multiclass_recall)
+    multiclass_accuracy,
+    multiclass_confusion_matrix,
+    multiclass_f1_score,
+    multiclass_precision,
+    multiclass_recall,
+)
 
 
 def score_predictions(predicted, target, nbins):
