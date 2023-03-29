@@ -75,19 +75,21 @@ class QuantileNormalize(nn.Module):
             # boundaries = torch.exp(torch.linspace(0, torch.log(max_val), self.n_bins))
 
             boundaries = [torch.tensor(0.0)]
-            min_step_size = 0.1
-            for q in range(self.n_bins - 1):
+            # min_step_size = 0.1
+            for q in range(self.n_bins - 2):
                 data_remaining = tensor[tensor > boundaries[-1]]
                 n_data_remaining = len(data_remaining)
                 if n_data_remaining == 0:
                     next_val = boundaries[-1]
                 else:
-                    n_bins_remaining = self.n_bins - q - 1
-                    next_quantile = 1 / n_bins_remaining
-                    next_val = max(
-                        boundaries[-1] + min_step_size,
-                        torch.quantile(data_remaining, next_quantile),
-                    )
+                    # n_bins_remaining = self.n_bins - q - 1
+                    # next_quantile = 1 / n_bins_remaining
+                    # next_val = max(
+                    #     boundaries[-1] + min_step_size,
+                    #     torch.quantile(data_remaining, next_quantile),
+                    # )
+                    next_quantile = 1 / 2
+                    next_val = torch.quantile(data_remaining, next_quantile)
                 boundaries.append(next_val)
             boundaries = torch.stack(boundaries, dim=0)
             return torch.bucketize(tensor, boundaries)

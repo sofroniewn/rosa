@@ -10,7 +10,7 @@ def plot_marker_gene_heatmap(
     target_layer="target",
 ):
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 12), gridspec_kw={"wspace": 0})
-    max_expression_val = adata.uns["nbins"]
+    max_expression_val = adata.uns["nbins"] - 1
     sc.pl.matrixplot(
         adata,
         marker_genes,

@@ -37,7 +37,7 @@ class RosaDataModule(LightningDataModule):
             adata,
             mask_fraction=self.data_config.mask,
             pass_through=self.data_config.pass_through,
-            corrupt=0.1,
+            corrupt=self.data_config.corrupt,
             var_input=self.data_config.var_input,
             obs_indices=obs_indices_train,
             var_indices=var_indices_train,
@@ -53,22 +53,28 @@ class RosaDataModule(LightningDataModule):
         else:
             n_obs_sample = None
 
-        self.val_dataset = RosaDataset(
-            adata,
-            mask_fraction=self.data_config.mask,
-            pass_through=self.data_config.pass_through,
-            corrupt=self.data_config.corrupt,
-            var_input=self.data_config.var_input,
-            obs_indices=obs_indices_val,
-            var_indices=None,
-            mask_indices=var_indices_val,
-            n_var_sample=self.data_config.n_var_sample,
-            n_obs_sample=n_obs_sample,
-            expression_layer=self.data_config.expression_layer,
-            expression_transform_config=self.data_config.expression_transform,
-        )
+        # self.val_dataset = RosaDataset(
+        #     adata,
+        #     mask_fraction=self.data_config.mask,
+        #     pass_through=self.data_config.pass_through,
+        #     corrupt=self.data_config.corrupt,
+        #     var_input=self.data_config.var_input,
+        #     # obs_indices=obs_indices_val,
+        #     # var_indices=var_indices_train,
+        #     # mask_indices=None,
+        #     # obs_indices=obs_indices_train,
+        #     # var_indices=None,
+        #     # mask_indices=var_indices_val,
+        #     obs_indices=obs_indices_val,
+        #     var_indices=None,
+        #     mask_indices=var_indices_val,
+        #     n_var_sample=self.data_config.n_var_sample,
+        #     n_obs_sample=n_obs_sample,
+        #     expression_layer=self.data_config.expression_layer,
+        #     expression_transform_config=self.data_config.expression_transform,
+        # )
 
-        self.predict_dataset = RosaDataset(
+        self.val_dataset = RosaDataset(
             adata,
             mask_fraction=1.0,
             pass_through=0.0,
@@ -114,15 +120,15 @@ class RosaDataModule(LightningDataModule):
             num_workers=self.num_workers,
         )
 
-    def predict_dataloader(self, batch_size=None):
-        if batch_size is None:
-            batch_size = self.batch_size
-        return DataLoader(
-            self.predict_dataset,
-            batch_size=self.batch_size,
-            shuffle=False,
-            num_workers=self.num_workers,
-        )
+    # def predict_dataloader(self, batch_size=None):
+    #     if batch_size is None:
+    #         batch_size = self.batch_size
+    #     return DataLoader(
+    #         self.predict_dataset,
+    #         batch_size=self.batch_size,
+    #         shuffle=False,
+    #         num_workers=self.num_workers,
+    #     )
 
     def teardown(self, stage=None):
         pass

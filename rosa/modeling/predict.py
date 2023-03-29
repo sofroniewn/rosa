@@ -71,6 +71,7 @@ def predict(config: RosaConfig, chkpt: str) -> ad.AnnData:
         accelerator=config.device,
         devices=config.num_devices,
         strategy=strategy,
+        precision=config.precision,
         callbacks=[pred_writer],
     )
     trainer.predict(rlm, rdm, return_predictions=False)
@@ -108,9 +109,9 @@ def predict(config: RosaConfig, chkpt: str) -> ad.AnnData:
         results = score_predictions(predicted, target, nbins=nbins)
 
         print("Assembling anndata object")
-        adata = rdm.val_dataset.adata
-        obs_indices = rdm.val_dataset.obs_indices.detach().numpy()
-        var_bool = rdm.val_dataset.mask_bool.detach().numpy()
+        adata = rdm.predict_dataset.adata
+        obs_indices = rdm.predict_dataset.obs_indices.detach().numpy()
+        var_bool = rdm.predict_dataset.mask_bool.detach().numpy()
         adata_predict = adata[obs_indices, var_bool]
         adata_predict.layers["confidence"] = confidence.detach().numpy()
         adata_predict.layers["target"] = target.detach().numpy()

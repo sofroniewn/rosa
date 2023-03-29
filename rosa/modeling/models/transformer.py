@@ -55,9 +55,10 @@ class RosaTransformer(nn.Module):
             )
         )
 
+        dim = embedding_dim_1
         # Add transformer if provided
         if config.transformer is None:
-            transformer = nn.Identity()  # type: nn.Module
+            transformer = None  # type: Optional[nn.Module]
         else:
             transformer = Performer(
                 dim=config.transformer.dim,
@@ -69,7 +70,7 @@ class RosaTransformer(nn.Module):
             )
 
         head = ProjectionExpressionHead(
-            config.transformer.dim,
+            dim,
             1,
             config=config.expression_head,
         )
@@ -90,6 +91,7 @@ class RosaTransformer(nn.Module):
 
         # attention mask is true for values where attention can look,
         # false for values that should be ignored
-        x = self.transformer(x, mask=~batch["mask"])  # type: ignore
+        if self.transformer is not None:
+            x = self.transformer(x, mask=~batch["mask"])  # type: ignore
         x = self.dropout(x)  # type: ignore
         return self.expression_head(x)  # type: ignore

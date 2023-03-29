@@ -16,9 +16,15 @@ def train(config: RosaConfig) -> None:
     )
     rdm.setup()
 
+    adata = rdm.val_dataset.adata
+    obs_indices = rdm.val_dataset.obs_indices.detach().numpy()
+    var_bool = rdm.val_dataset.mask_bool.detach().numpy()
+    adata_predict = adata[obs_indices, var_bool]
+    
     rlm = RosaLightningModule(
         var_input=rdm.var_input,
         config=config.module,
+        adata=adata_predict,
     )
     print(rlm)
 
@@ -32,16 +38,17 @@ def train(config: RosaConfig) -> None:
         strategy = None
 
     trainer = Trainer(
-        max_epochs=500_000,
-        check_val_every_n_epoch=1,
-        # log_every_n_steps=10_000,
+        max_epochs=-1,
+        check_val_every_n_epoch=5,
         logger=TensorBoardLogger(".", "", ""),
         resume_from_checkpoint=config.paths.chkpt,
         accelerator=config.device,
         devices=config.num_devices,
         strategy=strategy,
+        precision=config.precision,
         callbacks=[checkpoint_callback],
         accumulate_grad_batches=config.data_module.accumulate,
         gradient_clip_val=config.gradient_clip_val,
+        deterministic=True
     )
     trainer.fit(rlm, rdm)

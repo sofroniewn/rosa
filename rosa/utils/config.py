@@ -192,5 +192,6 @@ class RosaConfig:
     data_module: DataModuleConfig
     module: ModuleConfig
     device: str
+    precision: str
     num_devices: int
     gradient_clip_val: Optional[float]

@@ -5,7 +5,7 @@ paths:
   base: /home/ec2-user/cell_census # /home/ec2-user/ or /Users/nsofroniew/Documents/data/multiomics/
   dataset: tabula_sapiens
   preprocessed: _sample_${preprocessing.bulk_data.sample_col}__label_${preprocessing.bulk_data.label_col}
-  chkpt: null
+  chkpt: null # /home/ec2-user/outputs/2023-03-26/07-50-42/checkpoints/last.ckpt
 preprocessing:
   gene_embeddings:
     path: /Users/nsofroniew/Documents/data/multiomics/enformer/Homo_sapiens.GRCh38.genes.enformer_tss_embedding.zarr
@@ -35,12 +35,13 @@ preprocessing:
     mean_expression_threshold: 0.1
     score_quantile: 0.9
 module:
-  learning_rate: 0.0005
+  learning_rate: 0.005
   criterion:
     loss_function: ce
 device: cuda # cuda or cpu
 num_devices: 1 # 8 or 1
 gradient_clip_val: 10
+precision: 16
 defaults:
   - data_module: transformer
   - module/model: transformer
