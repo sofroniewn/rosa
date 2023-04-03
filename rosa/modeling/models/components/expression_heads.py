@@ -4,13 +4,11 @@ from typing import Tuple, Union
 import torch
 import torch.nn as nn
 
-from ....utils.config import (
-    ExpressionHeadActivations,  # type: ignore
-    ExpressionHeadConfig,
-)
+from ....utils.config import ExpressionHeadActivations  # type: ignore
+from ....utils.config import ExpressionHeadConfig
 
 
-class ProjectionExpressionHead(nn.Module):
+class LinearHead(nn.Module):
     """
     Go from a latent space to expression
     """
@@ -21,7 +19,7 @@ class ProjectionExpressionHead(nn.Module):
         out_dim,
         config: ExpressionHeadConfig,
     ):
-        super(ProjectionExpressionHead, self).__init__()
+        super(LinearHead, self).__init__()
         if config.n_bins is None:
             self.n_bins = 1
         else:
@@ -51,6 +49,7 @@ class ProjectionExpressionHead(nn.Module):
         self.model = nn.Sequential(
             OrderedDict(
                 [
+                    ("dropout", nn.Dropout(config.dropout_prob)),
                     ("projection", projection_nn),
                     ("activation", activation_nn),
                 ]

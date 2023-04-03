@@ -12,17 +12,15 @@ def score_predictions(predicted, target, nbins):
     # Compute and store results
     results = {}
 
-    results["spearman_obs"] = (
-        spearman_corrcoef(predicted.T.float(), target.T.float())
-    )
-    results["spearman_var"] = (
-        spearman_corrcoef(predicted.float(), target.float())
-    )
+    results["spearman_obs"] = spearman_corrcoef(predicted.T.float(), target.T.float())
+    results["spearman_var"] = spearman_corrcoef(predicted.float(), target.float())
 
     results["spearman_obs_mean"] = results["spearman_obs"].mean()
     results["spearman_var_mean"] = results["spearman_var"].mean()
 
-    results["confusion_matrix"] = multiclass_confusion_matrix(predicted.ravel(), target.ravel(), nbins)
+    results["confusion_matrix"] = multiclass_confusion_matrix(
+        predicted.ravel(), target.ravel(), nbins
+    )
     return results
 
 

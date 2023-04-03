@@ -1,17 +1,17 @@
 from typing import Optional, Tuple, Union
 
 import anndata as ad
-import scanpy as sc
 import numpy as np
+import scanpy as sc
 import torch
 import torch.nn as nn
 import torch.optim as optim
 from pytorch_lightning import LightningModule
 from scanpy.plotting._matrixplot import MatrixPlot
 
+from ..utils import merge_images, score_predictions
 from ..utils.config import ModuleConfig
-from ..utils import score_predictions, merge_images
-from .models import RosaTransformer, criterion_factory
+from .models import RosaTransformer
 
 
 def sample(x: torch.Tensor, nbins: int = 1) -> Tuple[torch.Tensor, torch.Tensor]:
@@ -53,12 +53,15 @@ class RosaLightningModule(LightningModule):
             config=config.model,
         )
         self.register_buffer("var_input", var_input)
-        self.learning_rate = config.learning_rate
+        self.optim_config = config.optimizer
+
         self.criterion = nn.CrossEntropyLoss(weight=weight)
         self.n_bins = config.model.n_bins
         self.adata = adata
         self.target = None
-        self.marker_genes_dict = self.adata.obs.set_index('label').to_dict()['marker_feature_name']
+        self.marker_genes_dict = self.adata.obs.set_index("label").to_dict()[
+            "marker_feature_name"
+        ]
         sc.tl.dendrogram(self.adata, groupby="label", use_rep="X")
 
     def forward(self, batch):
@@ -71,7 +74,9 @@ class RosaLightningModule(LightningModule):
         expression_predicted = expression_predicted[batch["mask"]]
         expression = expression[batch["mask"]]
         loss = self.criterion(expression_predicted, expression)
-        self.log("train_loss", loss, on_step=False, on_epoch=True, prog_bar=True, logger=True)
+        self.log(
+            "train_loss", loss, on_step=False, on_epoch=True, prog_bar=True, logger=True
+        )
         return loss
 
     # def validation_step(self, batch, _):
@@ -84,7 +89,7 @@ class RosaLightningModule(LightningModule):
     #     self.log(
     #         "val_loss", loss, on_epoch=True, prog_bar=True, logger=True, sync_dist=True
     #     )
-    #     return loss     
+    #     return loss
 
     def validation_step(self, batch, batch_idx, dataloader_idx=0):
         expression = batch["expression_target"]
@@ -100,14 +105,16 @@ class RosaLightningModule(LightningModule):
         )
 
         results = {}
-        results["expression_predicted"] = expression_predicted.reshape(batch_size, -1, self.n_bins)
+        results["expression_predicted"] = expression_predicted.reshape(
+            batch_size, -1, self.n_bins
+        )
         results["expression_target"] = expression.reshape(batch_size, -1)
         results["batch_idx"] = batch_idx
         results["dataloader_idx"] = dataloader_idx
         results["obs_idx"] = batch["obs_idx"]
         return results
 
-    def validation_epoch_end(self, results):        
+    def validation_epoch_end(self, results):
         results = self.all_gather(results)
         predicted = []
         confidence = []
@@ -128,14 +135,19 @@ class RosaLightningModule(LightningModule):
         predicted = torch.concat(predicted)[order]
 
         scores = score_predictions(predicted, target, nbins=self.n_bins)
-        self.log('spearman_obs_mean', scores['spearman_obs_mean'])
-        self.log('spearman_var_mean', scores['spearman_var_mean'])
-        
-        cm = scores['confusion_matrix']
+        self.log("spearman_obs_mean", scores["spearman_obs_mean"])
+        self.log("spearman_var_mean", scores["spearman_var_mean"])
+
+        cm = scores["confusion_matrix"]
         cm_norm = cm / cm.sum(dim=1)[:, None]
 
         tensorboard_logger = self.logger.experiment
-        tensorboard_logger.add_image("confusion_matrix", torch.flip(cm_norm, (0,)), self.global_step, dataformats='HW')   
+        tensorboard_logger.add_image(
+            "confusion_matrix",
+            torch.flip(cm_norm, (0,)),
+            self.global_step,
+            dataformats="HW",
+        )
 
         if self.global_step > 0 and self.target is None:
             # self.adata.layers["confidence"] = confidence.detach().cpu().numpy()
@@ -148,9 +160,9 @@ class RosaLightningModule(LightningModule):
                 gene_symbols="feature_name",
                 layer="target",
                 vmin=0,
-                vmax=self.n_bins-1,
+                vmax=self.n_bins - 1,
                 show=False,
-                dendrogram=False,            
+                dendrogram=False,
             )
             mp.add_dendrogram(dendrogram_key=True)
 
@@ -160,8 +172,10 @@ class RosaLightningModule(LightningModule):
 
             if mp.categories_order is not None:
                 _color_df = _color_df.loc[mp.categories_order, :]
-            self.target = torch.from_numpy(_color_df.values) / (self.n_bins-1)
-            tensorboard_logger.add_image("cellXgene_1_target", self.target, self.global_step, dataformats='HW')   
+            self.target = torch.from_numpy(_color_df.values) / (self.n_bins - 1)
+            tensorboard_logger.add_image(
+                "cellXgene_1_target", self.target, self.global_step, dataformats="HW"
+            )
 
         if self.global_step > 0:
             # self.adata.layers["confidence"] = confidence.detach().cpu().numpy()
@@ -174,9 +188,9 @@ class RosaLightningModule(LightningModule):
                 gene_symbols="feature_name",
                 layer="predicted",
                 vmin=0,
-                vmax=self.n_bins-1,
+                vmax=self.n_bins - 1,
                 show=False,
-                dendrogram=False,            
+                dendrogram=False,
             )
             mp.add_dendrogram(dendrogram_key=True)
 
@@ -187,17 +201,27 @@ class RosaLightningModule(LightningModule):
             if mp.categories_order is not None:
                 _color_df = _color_df.loc[mp.categories_order, :]
 
-            predicted = torch.from_numpy(_color_df.values) / (self.n_bins-1)
-            tensorboard_logger.add_image("cellXgene_2_predicted", predicted, self.global_step, dataformats='HW')
+            predicted = torch.from_numpy(_color_df.values) / (self.n_bins - 1)
+            tensorboard_logger.add_image(
+                "cellXgene_2_predicted", predicted, self.global_step, dataformats="HW"
+            )
+
             if self.target is not None:
                 blended = merge_images(self.target, predicted)
-                tensorboard_logger.add_image("cellXgene_3_blended", blended, self.global_step, dataformats='HWC')   
-
+                tensorboard_logger.add_image(
+                    "cellXgene_3_blended", blended, self.global_step, dataformats="HWC"
+                )
 
     def configure_optimizers(self):
-        optimizer = optim.AdamW(self.model.parameters(), lr=self.learning_rate, betas=(0.9, 0.98), eps=1e-08, weight_decay=0.01)
+        optimizer = optim.AdamW(
+            self.model.parameters(),
+            lr=self.optim_config.learning_rate,
+            betas=(self.optim_config.beta_1, self.optim_config.beta_2),
+            eps=self.optim_config.eps,
+            weight_decay=self.optim_config.weight_decay,
+        )
         self.lr_scheduler = CosineWarmupScheduler(
-            optimizer, warmup=1000, max_iters=10_000
+            optimizer, warmup=self.optim_config.warmup, max_iters=self.optim_config.max_iters
         )
         return optimizer
 

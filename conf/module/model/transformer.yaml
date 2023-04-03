@@ -1,24 +1,23 @@
-dropout_prob: 0.1
-layer_norm: null
-layer_norm_1: True
 n_bins: ${data_module.data.expression_transform.n_bins}
+dim: 320 # 128 320
 transformer:
-  dim: 320 # 128 320
+  dim: ${module.model.dim}
   heads: 20 # 4 5
   dim_head: 16 # 32 64
   depth: 6 # 4 6
   dropout: 0.1
-input_embed:
+expression_embed:
+  pre_layer_norm: False
   layer_norm: True
   dropout_prob: 0.1
-  embedding_dim: ${module.model.transformer.dim}
-input_embed_1:
+  dim: ${module.model.dim}
+var_embed:
+  pre_layer_norm: True
   layer_norm: True
   dropout_prob: 0.1
-  embedding_dim: ${module.model.transformer.dim}
+  dim: ${module.model.dim}
 expression_head:
+  dropout_prob: 0.1
   projection: True
   activation: null
-  likelihood: null
-  library_size: null
   n_bins: ${data_module.data.expression_transform.n_bins}

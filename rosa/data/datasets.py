@@ -35,7 +35,6 @@ class RosaDataset(Dataset):
         expression_layer: Optional[str] = None,
         expression_transform_config: Optional[ExpressionTransformConfig] = None,
     ) -> None:
-
         self.adata = adata
         self.pass_through = pass_through
         self.corrupt = corrupt
@@ -98,19 +97,23 @@ class RosaDataset(Dataset):
         self.n_obs_sample = n_obs_sample
         self.n_var = len(self.var_indices)
 
-        if mask_style is None or mask_style == 'random':
+        if mask_style is None or mask_style == "random":
             self.counts = None
-        elif mask_style == 'uniform':
+        elif mask_style == "uniform":
             counts = torch.bincount(self.expression.ravel(), minlength=self.n_bins)
-            self.counts = counts / counts.sum() # counts n_bins
-        elif mask_style == 'uniform_var':
-            counts = torch.stack([torch.bincount(x, minlength=self.n_bins) for x in self.expression.T]).T
-            self.counts = counts / self.expression.shape[0] # counts var x n_bins
-        elif mask_style == 'uniform_obs':
-            counts = torch.stack([torch.bincount(x, minlength=self.n_bins) for x in self.expression])
-            self.counts = counts / self.expression.shape[1] # counts obs x n_bins
+            self.counts = counts / counts.sum()  # counts n_bins
+        elif mask_style == "uniform_var":
+            counts = torch.stack(
+                [torch.bincount(x, minlength=self.n_bins) for x in self.expression.T]
+            ).T
+            self.counts = counts / self.expression.shape[0]  # counts var x n_bins
+        elif mask_style == "uniform_obs":
+            counts = torch.stack(
+                [torch.bincount(x, minlength=self.n_bins) for x in self.expression]
+            )
+            self.counts = counts / self.expression.shape[1]  # counts obs x n_bins
         else:
-            raise ValueError(f'Unrecognized mask style {mask_style}')
+            raise ValueError(f"Unrecognized mask style {mask_style}")
 
         # Mask indices are the var indices that are allowed to be masked
         if mask_indices is None:
@@ -145,7 +148,10 @@ class RosaDataset(Dataset):
 
         # Create mask
         mask_indices = create_mask(
-            expression, self.mask_bool[actual_idx_var], self.mask_fraction, self.counts, #[:, actual_idx_var]
+            expression,
+            self.mask_bool[actual_idx_var],
+            self.mask_fraction,
+            self.counts,  # [:, actual_idx_var]
         )
         mask = torch.zeros(expression.shape, dtype=torch.bool)
         mask[mask_indices] = True
@@ -184,13 +190,15 @@ def create_mask(
 
     if counts is None:
         # Pick random set of allowed indices to mask
-        use_mask_indices = torch.randperm(len(mask_indices))[: int(len(mask_indices) * mask_fraction)]
+        use_mask_indices = torch.randperm(len(mask_indices))[
+            : int(len(mask_indices) * mask_fraction)
+        ]
         return mask_indices[use_mask_indices]
 
     if counts.ndim == 1:
-       result = counts[expression]
+        result = counts[expression]
     else:
-       result = counts[expression, torch.arange(expression.shape[0])]
+        result = counts[expression, torch.arange(expression.shape[0])]
 
     adj_values = 1 / result[mask_indices]
     # adj_values[torch.isinf(adj_values)] = 0

@@ -110,38 +110,18 @@ class ExpressionHeadLikelihood(Enum):
 
 @dataclass
 class ExpressionHeadConfig:
+    dropout_prob: float
     projection: Optional[bool]
     activation: Optional[ExpressionHeadActivations]
-    library_size: Optional[int]
-    likelihood: Optional[ExpressionHeadLikelihood]
     n_bins: Optional[int]
 
 
 @dataclass
 class InputEmbedConfig:
-    dropout_prob: float
+    dim: int
+    pre_layer_norm: bool
     layer_norm: bool
-    embedding_dim: int
-
-
-@dataclass
-class FeedForwardConfig:
     dropout_prob: float
-    hidden_dim: int
-
-
-class JoinEmbedsMethods(Enum):
-    ADD = auto()
-    CAT = auto()
-    BILINEAR = auto()
-    ATTENTION = auto()
-    DOT = auto()
-
-
-@dataclass
-class JoinEmbedsConfig:
-    method: JoinEmbedsMethods
-    out_dim: Optional[int]
 
 
 @dataclass
@@ -166,23 +146,30 @@ class CriterionConfig:
 
 @dataclass
 class ModelConfig:
-    dropout_prob: float
-    layer_norm: bool
+    n_bins: int
+    dim: int
     expression_head: ExpressionHeadConfig
-    feed_forward: Optional[FeedForwardConfig]
-    input_embed: Optional[InputEmbedConfig]
-    join_embeds: Optional[JoinEmbedsConfig]
-    input_embed_1: Optional[InputEmbedConfig]
-    layer_norm_1: Optional[bool]
-    transformer: Optional[TransformerConfig]
-    n_bins: Optional[int]
+    var_embed: InputEmbedConfig
+    expression_embed: InputEmbedConfig
+    transformer: TransformerConfig
+
+
+@dataclass
+class OptimizerConfig:
+    learning_rate: float
+    beta_1: float # 0.9
+    beta_2: float # 0.98
+    eps: float #1e-8
+    weight_decay: float #0.01
+    warmup: int #1000
+    max_iters: int #10_000
 
 
 @dataclass
 class ModuleConfig:
     model: ModelConfig
     criterion: CriterionConfig
-    learning_rate: float
+    optimizer: OptimizerConfig
 
 
 @dataclass

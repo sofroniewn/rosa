@@ -1,3 +1,2 @@
-from .criterion import criterion_factory
-from .expression_heads import ProjectionExpressionHead
-from .input_embeds import BinnedEmbed, InputEmbed
+from .expression_heads import LinearHead
+from .input_embeds import BinnedEmbed, LinearEmbed

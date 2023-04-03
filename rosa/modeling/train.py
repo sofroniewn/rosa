@@ -1,5 +1,4 @@
 import torch
-
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.loggers import TensorBoardLogger
@@ -29,7 +28,7 @@ def train(config: RosaConfig) -> None:
         var_input=rdm.var_input,
         config=config.module,
         adata=adata_predict,
-        weight= None, #1 / counts,
+        weight=None,  # 1 / counts,
     )
     print(rlm)
 
@@ -54,6 +53,6 @@ def train(config: RosaConfig) -> None:
         callbacks=[checkpoint_callback],
         accumulate_grad_batches=config.data_module.accumulate,
         gradient_clip_val=config.gradient_clip_val,
-        deterministic=True
+        deterministic=True,
     )
     trainer.fit(rlm, rdm)

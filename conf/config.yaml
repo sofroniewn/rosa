@@ -35,7 +35,6 @@ preprocessing:
     mean_expression_threshold: 0.1
     score_quantile: 0.9
 module:
-  learning_rate: 0.0004
   criterion:
     loss_function: ce
 device: cuda # cuda or cpu
@@ -45,3 +44,4 @@ precision: 16
 defaults:
   - data_module: transformer
   - module/model: transformer
+  - module/optimizer: optimizer
