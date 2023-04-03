@@ -31,6 +31,7 @@ class RosaDataset(Dataset):
         obs_indices: Optional[Tensor] = None,
         var_indices: Optional[Tensor] = None,
         mask_indices: Optional[Tensor] = None,
+        mask_style: Optional[str] = None,
         expression_layer: Optional[str] = None,
         expression_transform_config: Optional[ExpressionTransformConfig] = None,
     ) -> None:
@@ -42,13 +43,15 @@ class RosaDataset(Dataset):
 
         # prepare expression, shape n_obs x n_var
         if expression_layer is None:
-            self.expression = adata.X  # type: Union[np.ndarray, csr_matrix]
+            expression = adata.X  # type: Union[np.ndarray, csr_matrix]
         else:
-            self.expression = adata.layers[expression_layer]
+            expression = adata.layers[expression_layer]
 
         if expression_transform_config is None:
             expression_transform_config = ExpressionTransformConfig()
+
         self.transform = ExpressionTransform(expression_transform_config)
+        self.expression = torch.stack([self.transform(x) for x in expression])
         self.n_bins = self.transform[-1].n_bins
 
         # prepare var input, shape n_var x var_dim
@@ -95,6 +98,20 @@ class RosaDataset(Dataset):
         self.n_obs_sample = n_obs_sample
         self.n_var = len(self.var_indices)
 
+        if mask_style is None or mask_style == 'random':
+            self.counts = None
+        elif mask_style == 'uniform':
+            counts = torch.bincount(self.expression.ravel(), minlength=self.n_bins)
+            self.counts = counts / counts.sum() # counts n_bins
+        elif mask_style == 'uniform_var':
+            counts = torch.stack([torch.bincount(x, minlength=self.n_bins) for x in self.expression.T]).T
+            self.counts = counts / self.expression.shape[0] # counts var x n_bins
+        elif mask_style == 'uniform_obs':
+            counts = torch.stack([torch.bincount(x, minlength=self.n_bins) for x in self.expression])
+            self.counts = counts / self.expression.shape[1] # counts obs x n_bins
+        else:
+            raise ValueError(f'Unrecognized mask style {mask_style}')
+
         # Mask indices are the var indices that are allowed to be masked
         if mask_indices is None:
             self.mask_bool = torch.ones(self.expression.shape[1], dtype=torch.bool)
@@ -123,12 +140,12 @@ class RosaDataset(Dataset):
             ]
 
         # Transform expression
-        expression = self.transform(self.expression[actual_idx_obs])[actual_idx_var]
+        expression = self.expression[actual_idx_obs, actual_idx_var]
         expression_target = expression.clone().detach()
 
         # Create mask
         mask_indices = create_mask(
-            expression, self.n_bins, self.mask_bool[actual_idx_var], self.mask_fraction
+            expression, self.mask_bool[actual_idx_var], self.mask_fraction, self.counts, #[:, actual_idx_var]
         )
         mask = torch.zeros(expression.shape, dtype=torch.bool)
         mask[mask_indices] = True
@@ -149,9 +166,9 @@ class RosaDataset(Dataset):
 
 def create_mask(
     expression: Tensor,
-    n_bins: int,
     mask_bool: Tensor,
     mask_fraction: float = 0.0,
+    counts: Optional[Tensor] = None,
 ) -> Tensor:
     if mask_fraction == 0.0:
         # Mask no values
@@ -165,12 +182,21 @@ def create_mask(
     if len(mask_indices) == 0:
         return mask_indices
 
-    # Mask fraction of allowed values at rates inversely proportial to observed counts
-    values, counts = torch.unique(expression, return_counts=True)
-    bin_counts = torch.zeros(n_bins, dtype=torch.long)
-    bin_counts[values] = counts
+    if counts is None:
+        # Pick random set of allowed indices to mask
+        use_mask_indices = torch.randperm(len(mask_indices))[: int(len(mask_indices) * mask_fraction)]
+        return mask_indices[use_mask_indices]
+
+    if counts.ndim == 1:
+       result = counts[expression]
+    else:
+       result = counts[expression, torch.arange(expression.shape[0])]
+
+    adj_values = 1 / result[mask_indices]
+    # adj_values[torch.isinf(adj_values)] = 0
+
     use_mask_indices = torch.multinomial(
-        1 / bin_counts[expression[mask_indices]],
+        adj_values,
         int(mask_fraction * len(expression)),
     )
     return mask_indices[use_mask_indices]
@@ -186,7 +212,7 @@ def apply_mask(
     num_pass = int(pass_through * len(mask_indices))
     num_corrput = int(corrupt * len(mask_indices))
     if num_corrput > 0 and len(mask_indices) >= num_pass + num_corrput:
-        # corrupt to values at rates proportial to observed counts
+        # corrupt to values at rates proportial to observed counts ### FIX!!!!!
         values, counts = torch.unique(expression, return_counts=True)
         count_inds = torch.multinomial(counts.float(), num_corrput, replacement=True)
         expression[mask_indices[num_pass : num_pass + num_corrput]] = values[count_inds]

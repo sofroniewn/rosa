@@ -1,3 +1,5 @@
+import torch
+
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.loggers import TensorBoardLogger
@@ -20,11 +22,14 @@ def train(config: RosaConfig) -> None:
     obs_indices = rdm.val_dataset.obs_indices.detach().numpy()
     var_bool = rdm.val_dataset.mask_bool.detach().numpy()
     adata_predict = adata[obs_indices, var_bool]
-    
+    # counts = rdm.train_dataset.counts.mean(dim=1)
+    # counts = torch.bincount(rdm.train_dataset.expression.ravel(), minlength=rdm.train_dataset.n_bins)
+
     rlm = RosaLightningModule(
         var_input=rdm.var_input,
         config=config.module,
         adata=adata_predict,
+        weight= None, #1 / counts,
     )
     print(rlm)
 
@@ -38,7 +43,7 @@ def train(config: RosaConfig) -> None:
         strategy = None
 
     trainer = Trainer(
-        max_epochs=-1,
+        max_epochs=10_000,
         check_val_every_n_epoch=5,
         logger=TensorBoardLogger(".", "", ""),
         resume_from_checkpoint=config.paths.chkpt,

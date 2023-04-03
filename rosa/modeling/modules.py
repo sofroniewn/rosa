@@ -2,6 +2,7 @@ from typing import Optional, Tuple, Union
 
 import anndata as ad
 import scanpy as sc
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -9,7 +10,7 @@ from pytorch_lightning import LightningModule
 from scanpy.plotting._matrixplot import MatrixPlot
 
 from ..utils.config import ModuleConfig
-from ..utils import score_predictions
+from ..utils import score_predictions, merge_images
 from .models import RosaTransformer, criterion_factory
 
 
@@ -20,12 +21,31 @@ def sample(x: torch.Tensor, nbins: int = 1) -> Tuple[torch.Tensor, torch.Tensor]
     return x, torch.ones_like(x)
 
 
+# from https://lightning.ai/docs/pytorch/stable/notebooks/course_UvA-DL/05-transformers-and-MH-attention.html?highlight=warm
+class CosineWarmupScheduler(optim.lr_scheduler._LRScheduler):
+    def __init__(self, optimizer, warmup, max_iters):
+        self.warmup = warmup
+        self.max_num_iters = max_iters
+        super().__init__(optimizer)
+
+    def get_lr(self):
+        lr_factor = self.get_lr_factor(epoch=self.last_epoch)
+        return [base_lr * lr_factor for base_lr in self.base_lrs]
+
+    def get_lr_factor(self, epoch):
+        lr_factor = 0.5 * (1 + np.cos(np.pi * epoch / self.max_num_iters))
+        if epoch <= self.warmup:
+            lr_factor *= epoch * 1.0 / self.warmup
+        return lr_factor
+
+
 class RosaLightningModule(LightningModule):
     def __init__(
         self,
         var_input: torch.Tensor,
         config: ModuleConfig,
         adata: ad.AnnData,
+        weight: Optional[torch.Tensor] = None,
     ):
         super(RosaLightningModule, self).__init__()
         self.model = RosaTransformer(
@@ -34,10 +54,10 @@ class RosaLightningModule(LightningModule):
         )
         self.register_buffer("var_input", var_input)
         self.learning_rate = config.learning_rate
-        self.criterion = criterion_factory(config.criterion)
+        self.criterion = nn.CrossEntropyLoss(weight=weight)
         self.n_bins = config.model.n_bins
         self.adata = adata
-        self.logged_target = False
+        self.target = None
         self.marker_genes_dict = self.adata.obs.set_index('label').to_dict()['marker_feature_name']
         sc.tl.dendrogram(self.adata, groupby="label", use_rep="X")
 
@@ -117,7 +137,7 @@ class RosaLightningModule(LightningModule):
         tensorboard_logger = self.logger.experiment
         tensorboard_logger.add_image("confusion_matrix", torch.flip(cm_norm, (0,)), self.global_step, dataformats='HW')   
 
-        if self.global_step > 0 and not self.logged_target:
+        if self.global_step > 0 and self.target is None:
             # self.adata.layers["confidence"] = confidence.detach().cpu().numpy()
             self.adata.layers["target"] = target.detach().cpu().numpy()
             # self.adata.layers["predicted"] = predicted.detach().cpu().numpy()
@@ -140,8 +160,8 @@ class RosaLightningModule(LightningModule):
 
             if mp.categories_order is not None:
                 _color_df = _color_df.loc[mp.categories_order, :]
-            tensorboard_logger.add_image("cellXgene_1_target", torch.from_numpy(_color_df.values) / (self.n_bins-1), self.global_step, dataformats='HW')   
-            self.logged_target = True
+            self.target = torch.from_numpy(_color_df.values) / (self.n_bins-1)
+            tensorboard_logger.add_image("cellXgene_1_target", self.target, self.global_step, dataformats='HW')   
 
         if self.global_step > 0:
             # self.adata.layers["confidence"] = confidence.detach().cpu().numpy()
@@ -166,11 +186,24 @@ class RosaLightningModule(LightningModule):
 
             if mp.categories_order is not None:
                 _color_df = _color_df.loc[mp.categories_order, :]
-            tensorboard_logger.add_image("cellXgene_2_predicted", torch.from_numpy(_color_df.values) / (self.n_bins-1), self.global_step, dataformats='HW')   
+
+            predicted = torch.from_numpy(_color_df.values) / (self.n_bins-1)
+            tensorboard_logger.add_image("cellXgene_2_predicted", predicted, self.global_step, dataformats='HW')
+            if self.target is not None:
+                blended = merge_images(self.target, predicted)
+                tensorboard_logger.add_image("cellXgene_3_blended", blended, self.global_step, dataformats='HWC')   
 
 
     def configure_optimizers(self):
-        return optim.AdamW(self.model.parameters(), lr=self.learning_rate)
+        optimizer = optim.AdamW(self.model.parameters(), lr=self.learning_rate, betas=(0.9, 0.98), eps=1e-08, weight_decay=0.01)
+        self.lr_scheduler = CosineWarmupScheduler(
+            optimizer, warmup=1000, max_iters=10_000
+        )
+        return optimizer
+
+    def optimizer_step(self, *args, **kwargs):
+        super().optimizer_step(*args, **kwargs)
+        self.lr_scheduler.step()  # Step per iteration
 
     # def explain_iter(self, dataloader, explainer, indices=None):
     #     for x, y in iter(dataloader):

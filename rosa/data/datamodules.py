@@ -40,7 +40,7 @@ class RosaDataModule(LightningDataModule):
             corrupt=self.data_config.corrupt,
             var_input=self.data_config.var_input,
             obs_indices=obs_indices_train,
-            var_indices=var_indices_train,
+            var_indices=None, #var_indices_train,
             mask_indices=None,
             n_var_sample=self.data_config.n_var_sample,
             n_obs_sample=self.data_config.n_obs_sample,

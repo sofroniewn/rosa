@@ -24,3 +24,9 @@ def score_predictions(predicted, target, nbins):
 
     results["confusion_matrix"] = multiclass_confusion_matrix(predicted.ravel(), target.ravel(), nbins)
     return results
+
+
+def merge_images(img_A, img_B):
+    rgb = img_A.unsqueeze(-1).repeat(1, 1, 3)
+    rgb[:, :, 1] = img_B
+    return rgb

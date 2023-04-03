@@ -2,7 +2,7 @@ import cell_census
 from pathlib import Path
 
 
-BASE = "/Users/nsofroniew/Documents/data/multiomics/cell_census"
+BASE = "/home/ec2-user/cell_census" #"/Users/nsofroniew/Documents/data/multiomics/cell_census"
 DATASET = "tabula_sapiens"
 
 path = Path(BASE) / (DATASET + '.h5ad')
