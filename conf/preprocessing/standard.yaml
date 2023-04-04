@@ -1,0 +1,27 @@
+gene_embeddings:
+  path: /home/ec2-user/enformer/Homo_sapiens.GRCh38.genes.enformer_embeddings_max_cage.zarr #/Users/nsofroniew/Documents/data/multiomics/enformer/Homo_sapiens.GRCh38.genes.enformer_tss_embedding.zarr
+  gene_intervals: /home/ec2-user/enformer/Homo_sapiens.GRCh38.genes.bed #/Users/nsofroniew/Documents/data/multiomics/enformer/Homo_sapiens.GRCh38.genes.bed
+  pcs: 256
+cell_embeddings: null
+  # pcs: 256
+  # key: train
+bulk_data:
+  sample_col: donor_id # Use donor_id or dataset_id or single_cell
+  label_col: cell_type
+  min_cells: 50
+filter:
+  coding_only: True
+split:
+  seed: 42
+  fraction: 0.7
+  key: train
+expression_transform: null
+  # total_counts: 100_000
+  # log1p: True
+  # n_bins: null
+markers:
+  label_col: ${bulk_data.label_col}
+  total_counts: 100_000
+  log1p: True
+  mean_expression_threshold: 0.1
+  score_quantile: 0.9

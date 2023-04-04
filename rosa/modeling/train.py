@@ -42,17 +42,17 @@ def train(config: RosaConfig) -> None:
         strategy = None
 
     trainer = Trainer(
-        max_epochs=10_000,
-        check_val_every_n_epoch=5,
+        max_epochs=config.trainer.max_epochs,
+        check_val_every_n_epoch=config.trainer.check_val_every_n_epoch,
         logger=TensorBoardLogger(".", "", ""),
         resume_from_checkpoint=config.paths.chkpt,
-        accelerator=config.device,
-        devices=config.num_devices,
+        accelerator=config.trainer.device,
+        devices=config.trainer.num_devices,
         strategy=strategy,
-        precision=config.precision,
+        precision=config.trainer.precision,
         callbacks=[checkpoint_callback],
         accumulate_grad_batches=config.data_module.accumulate,
-        gradient_clip_val=config.gradient_clip_val,
+        gradient_clip_val=config.trainer.gradient_clip_val,
         deterministic=True,
     )
     trainer.fit(rlm, rdm)

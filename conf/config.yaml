@@ -1,47 +1,21 @@
+defaults:
+  - data_module: masked_var
+  - preprocessing: standard
+  - module/optimizer: adamw
+  - module/model: transformer
+  - trainer: cuda
+
 hydra:
   run:
-      dir: /home/ec2-user/outputs/${now:%Y-%m-%d}/${now:%H-%M-%S} # /home/ec2-user/ or /Users/nsofroniew/Documents/data/rosa/
+    dir: /home/ec2-user/outputs/${now:%Y-%m-%d}/${now:%H-%M-%S} # /home/ec2-user/ or /Users/nsofroniew/Documents/data/rosa/
+
 paths:
   base: /home/ec2-user/cell_census # /home/ec2-user/ or /Users/nsofroniew/Documents/data/multiomics/
   dataset: tabula_sapiens
   preprocessed: _max__sample_${preprocessing.bulk_data.sample_col}__label_${preprocessing.bulk_data.label_col}
   chkpt: null #/home/ec2-user/outputs/2023-04-01/16-59-32/checkpoints/last.ckpt
-preprocessing:
-  gene_embeddings:
-    path: /home/ec2-user/enformer/Homo_sapiens.GRCh38.genes.enformer_embeddings_max_cage.zarr #/Users/nsofroniew/Documents/data/multiomics/enformer/Homo_sapiens.GRCh38.genes.enformer_tss_embedding.zarr
-    gene_intervals: /home/ec2-user/enformer/Homo_sapiens.GRCh38.genes.bed #/Users/nsofroniew/Documents/data/multiomics/enformer/Homo_sapiens.GRCh38.genes.bed
-    pcs: 256
-  cell_embeddings: null
-    # pcs: 256
-    # key: train
-  bulk_data:
-    sample_col: donor_id # Use donor_id or dataset_id or single_cell
-    label_col: cell_type
-    min_cells: 50
-  filter:
-    coding_only: True
-  split:
-    seed: 42
-    fraction: 0.7
-    key: train
-  expression_transform: null
-    # total_counts: 100_000
-    # log1p: True
-    # n_bins: null
-  markers:
-    label_col: ${preprocessing.bulk_data.label_col}
-    total_counts: 100_000
-    log1p: True
-    mean_expression_threshold: 0.1
-    score_quantile: 0.9
+
 module:
   criterion:
     loss_function: ce
-device: cuda # cuda or cpu
-num_devices: 1 # 8 or 1
-gradient_clip_val: null
-precision: 16
-defaults:
-  - data_module: transformer
-  - module/model: transformer
-  - module/optimizer: optimizer
+

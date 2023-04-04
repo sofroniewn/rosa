@@ -157,12 +157,12 @@ class ModelConfig:
 @dataclass
 class OptimizerConfig:
     learning_rate: float
-    beta_1: float # 0.9
-    beta_2: float # 0.98
-    eps: float #1e-8
-    weight_decay: float #0.01
-    warmup: int #1000
-    max_iters: int #10_000
+    beta_1: float
+    beta_2: float
+    eps: float
+    weight_decay: float
+    warmup: int
+    max_iters: int
 
 
 @dataclass
@@ -173,12 +173,20 @@ class ModuleConfig:
 
 
 @dataclass
+class TrainerConfig:
+    device: str
+    precision: str
+    num_devices: int
+    max_epochs: int
+    check_val_every_n_epoch: int
+    gradient_clip_val: Optional[float]
+
+
+@dataclass
 class RosaConfig:
     paths: PathConfig
     preprocessing: PreProcessingConfig
     data_module: DataModuleConfig
     module: ModuleConfig
-    device: str
-    precision: str
-    num_devices: int
-    gradient_clip_val: Optional[float]
+    trainer: TrainerConfig
+

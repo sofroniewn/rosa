@@ -14,7 +14,7 @@ class LinearEmbed(nn.Module):
         out_dim = config.dim
 
         if config.pre_layer_norm:
-            pre_layer_norm_nn = nn.LayerNorm(out_dim)  # type: nn.Module
+            pre_layer_norm_nn = nn.LayerNorm(in_dim)  # type: nn.Module
         else:
             pre_layer_norm_nn = nn.Identity()
 
