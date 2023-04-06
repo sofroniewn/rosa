@@ -36,7 +36,7 @@ def train(config: RosaConfig) -> None:
         save_top_k=2, monitor="val_loss", mode="min", save_last=True
     )
 
-    if config.num_devices > 1:
+    if config.trainer.num_devices > 1:
         strategy = "ddp"
     else:
         strategy = None

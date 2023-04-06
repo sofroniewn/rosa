@@ -24,7 +24,7 @@ class RosaLightningModule(LightningModule):
     ):
         super(RosaLightningModule, self).__init__()
         self.model = RosaTransformer(
-            in_dim=var_input.shape[1],
+            in_dim=var_input.shape[1 + 1],
             config=config.model,
         )
         self.register_buffer("var_input", var_input)
@@ -45,7 +45,13 @@ class RosaLightningModule(LightningModule):
 
     def training_step(self, batch, _):
         expression = batch["expression_target"]
-        batch["var_input"] = self.var_input[batch["var_indices"]]
+
+        var_input = self.var_input[:, batch["var_indices"]]
+        # Randomly switch between var input indices for random sampling
+        random_indices = torch.randint(0, var_input.shape[0], (var_input.shape[1],))
+        batch["var_input"] = var_input[random_indices, torch.arange(var_input.shape[1])]
+        # batch["var_input"] = var_input[0]
+
         expression_predicted = self(batch)
         expression_predicted = expression_predicted[batch["mask"]]
         expression = expression[batch["mask"]]
@@ -69,7 +75,7 @@ class RosaLightningModule(LightningModule):
 
     def validation_step(self, batch, batch_idx, dataloader_idx=0):
         expression = batch["expression_target"]
-        batch["var_input"] = self.var_input[batch["var_indices"]]
+        batch["var_input"] = self.var_input[0, batch["var_indices"]]
         expression_predicted = self(batch)
         batch_size = batch["mask"].shape[0]
 

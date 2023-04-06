@@ -23,6 +23,22 @@ if __name__ == "__main__":
     from pathlib import Path
     import pandas as pd
     import numpy as np
+    import polars as pl
+
+    import anndata as ad
+
+    # PATH = '/home/ec2-user/cell_census/tabula_sapiens__sample_single_cell__label_cell_type__processed.h5ad'
+    PATH = '/home/ec2-user/cell_census/tabula_sapiens__sample_donor_id__label_cell_type.h5ad'
+
+    adata = ad.read_h5ad(PATH)
+
+    def filter_df_fn(df, shift=2):
+        df = df.filter(pl.col("column_5").is_in(list(adata.var_names)))
+        df = df.with_columns([
+            (pl.col("column_2") + shift),
+            (pl.col("column_3") + shift),
+        ])
+        return df
 
     torch.multiprocessing.freeze_support()
 
@@ -35,7 +51,7 @@ if __name__ == "__main__":
     FASTA_PT = BASE_PT + "/Homo_sapiens.GRCh38.dna.toplevel.fa"
     GENE_INTERVALS_PT = BASE_PT + "/Homo_sapiens.GRCh38.genes.bed"
     EMBEDDING_PT = BASE_PT + "/Homo_sapiens.GRCh38.genes.enformer_embeddings.zarr"
-    EMBEDDING_PT_TSS = BASE_PT + "/Homo_sapiens.GRCh38.genes.enformer_embeddings_max_cage.zarr"
+    EMBEDDING_PT_TSS = BASE_PT + "/Homo_sapiens.GRCh38.genes.enformer_embeddings_tss_2.zarr"
     MODEL_PT = "EleutherAI/enformer-official-rough"
     TARGET_PT = BASE_PT + '/targets_human.txt'
 
@@ -51,6 +67,7 @@ if __name__ == "__main__":
         fasta_file=FASTA_PT,  # path to fasta file
         return_seq_indices=False,  # return nucleotide indices (ACGTN) or one hot encodings
         rc_aug=False,
+        filter_df_fn=filter_df_fn,
     )
     dl = DataLoader(ds, batch_size=2, shuffle=False, num_workers=0) # type: DataLoader
 
@@ -89,10 +106,11 @@ if __name__ == "__main__":
         # calculate embedding
         with torch.no_grad():
             output, embeddings = model(batch.to(DEVICE), return_embeddings=True)
-            cage_expression = output['human'][:, :, cage_indices].mean(dim=-1)
-            max_inds = torch.argmax(cage_expression, dim=-1)
+            # cage_expression = output['human'][:, :, cage_indices].mean(dim=-1)
+            # max_inds = torch.argmax(cage_expression, dim=-1)
             batch_size = len(embeddings)
-            tss_embedding = embeddings[torch.arange(batch_size), max_inds]
+            # tss_embedding = embeddings[torch.arange(batch_size), max_inds]
+            tss_embedding = embeddings[:, TSS]
 
         # save full and reduced embeddings
         # z_embedding_full[index : index + batch_size] = embeddings

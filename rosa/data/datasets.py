@@ -55,17 +55,24 @@ class RosaDataset(Dataset):
 
         # prepare var input, shape n_var x var_dim
         if var_input in adata.varm.keys():
-            self.var_input = ToTensor()(adata.varm[var_input])
+            var_input_0 = ToTensor()(adata.varm[var_input])
+            # Add additional var inputs
+            var_input_1 = ToTensor()(adata.varm[var_input + '_1'])
+            var_input_2 = ToTensor()(adata.varm[var_input + '_2'])
+            var_input_m1 = ToTensor()(adata.varm[var_input + '_m1'])
+            var_input_m2 = ToTensor()(adata.varm[var_input + '_m2'])
+            self.var_input = torch.stack([var_input_0, var_input_1, var_input_2, var_input_m1, var_input_m2], dim=0)
+            # self.var_input = torch.stack([var_input_0, var_input_1], dim=0)
         elif var_input[-3:] == ".fa":
             self.var_input = AdataFastaInterval(adata, var_input)  # type: ignore
         else:
             raise ValueError(f"Unrecognized var input {var_input}")
 
-        if not self.expression.shape[1] == self.var_input.shape[0]:
+        if not self.expression.shape[1] == self.var_input.shape[0 + 1]:
             raise ValueError(
-                f"Number of genes in expression and var input must match, got {self.expression.shape[1]} and {self.var_input.shape[0]}"
+                f"Number of genes in expression and var input must match, got {self.expression.shape[1]} and {self.var_input.shape[0 + 1]}"
             )
-        self.var_dim = self.var_input.shape[1]
+        self.var_dim = self.var_input.shape[1 + 1]
 
         # Var indices are the var that will be included in each sample
         if var_indices is None:
