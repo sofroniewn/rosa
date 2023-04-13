@@ -4,7 +4,7 @@ import pickle
 import numpy as np
 
 
-TABULA_SAPIENS_BY_CELL_TYPE_WITH_EMBEDS_PT = "/Users/nsofroniew/Documents/data/multiomics/cell_census/tabula_sapiens_by_features_with_embeds_new_norm.h5ad"
+TABULA_SAPIENS_BY_CELL_TYPE_WITH_EMBEDS_PT = "/home/ec2-user/cell_census/tabula_sapiens__max__sample_donor_id__label_cell_type.h5ad"
 TABULA_SAPIENS_BY_CELL_TYPE_RIDGE_MODEL = "/Users/nsofroniew/Documents/data/multiomics/cell_census/tabula_sapiens_by_features_ridge_model_new_norm.sav"
 ALPHA = 100
 SHUFFLE = False

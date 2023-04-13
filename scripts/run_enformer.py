@@ -1,4 +1,28 @@
 from enformer_pytorch import GenomeIntervalDataset
+import numpy as np
+from pyensembl import EnsemblRelease
+import torch
+import torch.nn.functional as F
+
+
+def gaussian_kernel_1d(kernel_size, sigma):
+    if kernel_size % 2 == 0:
+        raise ValueError("Kernel size should be an odd number.")
+   
+    x = torch.arange(start=-kernel_size // 2, end=kernel_size // 2 + 1, dtype=torch.float32)
+    kernel = torch.exp(-0.5 * (x / sigma)**2)
+    kernel /= kernel.sum()
+   
+    return kernel
+
+
+def gaussian_filter_1d(input_tensor, kernel_size, sigma, padding_mode='reflect'):
+    input_tensor = input_tensor.unsqueeze(dim=1)
+    kernel = gaussian_kernel_1d(kernel_size, sigma)
+    kernel = kernel.view(1, 1, -1)
+    output = F.conv1d(input_tensor, kernel, padding='same')
+    return output.squeeze(dim=1)
+
 
 class MyGenomeIntervalDataset(GenomeIntervalDataset):
     def __init__(self, **kwargs):
@@ -8,6 +32,19 @@ class MyGenomeIntervalDataset(GenomeIntervalDataset):
         item = super().__getitem__(ind)
         label = self.df.row(ind)[4]
         return label, item
+
+
+genome = EnsemblRelease(77)
+
+
+def get_tss(gene_id, tss, length):
+    gene = genome.gene_by_id(gene_id)
+    starts = np.array([tss + np.round((ts.start - gene.start) / 128) for ts in gene.transcripts], dtype=int)
+    starts = starts[starts>=0]
+    starts = starts[starts<length]
+    vector = np.zeros(length)
+    vector[starts] = 1.0
+    return vector
 
 
 ##############################################################################
@@ -32,7 +69,7 @@ if __name__ == "__main__":
 
     adata = ad.read_h5ad(PATH)
 
-    def filter_df_fn(df, shift=2):
+    def filter_df_fn(df, shift=0):
         df = df.filter(pl.col("column_5").is_in(list(adata.var_names)))
         df = df.with_columns([
             (pl.col("column_2") + shift),
@@ -51,7 +88,7 @@ if __name__ == "__main__":
     FASTA_PT = BASE_PT + "/Homo_sapiens.GRCh38.dna.toplevel.fa"
     GENE_INTERVALS_PT = BASE_PT + "/Homo_sapiens.GRCh38.genes.bed"
     EMBEDDING_PT = BASE_PT + "/Homo_sapiens.GRCh38.genes.enformer_embeddings.zarr"
-    EMBEDDING_PT_TSS = BASE_PT + "/Homo_sapiens.GRCh38.genes.enformer_embeddings_tss_2.zarr"
+    EMBEDDING_PT_TSS = BASE_PT + "/Homo_sapiens.GRCh38.genes.enformer_embeddings_tss_max_0.zarr"
     MODEL_PT = "EleutherAI/enformer-official-rough"
     TARGET_PT = BASE_PT + '/targets_human.txt'
 
@@ -82,6 +119,8 @@ if __name__ == "__main__":
     NUM_GENES = len(ds)
     TSS = int(SEQ_EMBED_DIM // 2)
 
+    SIGMA = None
+
     paths = (Path(EMBEDDING_PT), Path(EMBEDDING_PT_TSS))
  
 
@@ -103,14 +142,26 @@ if __name__ == "__main__":
 
     index = 0
     for labels, batch in tqdm(dl):
+        batch_size = len(labels)
+        tss_tensors = []
+        for label in labels:
+            tss_tensors.append(torch.from_numpy(get_tss(label, tss=TSS, length=SEQ_EMBED_DIM)))
+
+        tss_tensors = torch.stack(tss_tensors, dim=0).to(DEVICE)
+
+        if SIGMA is not None:
+            tss_tensors = gaussian_filter_1d(tss_tensors, kernel_size=16, sigma=SIGMA)
+
         # calculate embedding
         with torch.no_grad():
             output, embeddings = model(batch.to(DEVICE), return_embeddings=True)
-            # cage_expression = output['human'][:, :, cage_indices].mean(dim=-1)
-            # max_inds = torch.argmax(cage_expression, dim=-1)
-            batch_size = len(embeddings)
-            # tss_embedding = embeddings[torch.arange(batch_size), max_inds]
-            tss_embedding = embeddings[:, TSS]
+            
+            cage_expression = output['human'][:, :, cage_indices].mean(dim=-1)
+            scaled_cage_expression = cage_expression * tss_tensors
+            max_inds = torch.argmax(cage_expression, dim=-1)
+            tss_embedding = embeddings[torch.arange(batch_size), max_inds]
+            
+            # tss_embedding = embeddings[:, TSS]
 
         # save full and reduced embeddings
         # z_embedding_full[index : index + batch_size] = embeddings
