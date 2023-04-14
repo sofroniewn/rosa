@@ -17,8 +17,8 @@ def gaussian_kernel_1d(kernel_size, sigma):
 
 
 def gaussian_filter_1d(input_tensor, kernel_size, sigma, padding_mode='reflect'):
-    input_tensor = input_tensor.unsqueeze(dim=1)
-    kernel = gaussian_kernel_1d(kernel_size, sigma)
+    input_tensor = input_tensor.unsqueeze(dim=1).type(torch.float)
+    kernel = gaussian_kernel_1d(kernel_size, sigma).type(torch.float).to(DEVICE)
     kernel = kernel.view(1, 1, -1)
     output = F.conv1d(input_tensor, kernel, padding='same')
     return output.squeeze(dim=1)
@@ -39,13 +39,96 @@ genome = EnsemblRelease(77)
 
 def get_tss(gene_id, tss, length):
     gene = genome.gene_by_id(gene_id)
-    starts = np.array([tss + np.round((ts.start - gene.start) / 128) for ts in gene.transcripts], dtype=int)
-    starts = starts[starts>=0]
-    starts = starts[starts<length]
+    transcripts = [ts for ts in gene.transcripts if ts.biotype == 'protein_coding']
+    if len(transcripts) > 0:
+        starts = np.array([tss + np.round((ts.start - gene.start) / 128) for ts in gene.transcripts], dtype=int)
+        starts = starts[starts>=0]
+        starts = starts[starts<length]
+    else:
+        starts = np.array([tss], dtype=int)
     vector = np.zeros(length)
     vector[starts] = 1.0
     return vector
 
+
+# def extract_embeddings(embeddings, cage_expression, tss_tensors, sigmas, tss):
+#     # Embeddings include
+#     #   TSS
+#     #   sum over all
+#     #   argmax over all
+#     #   argmax over TSS
+#     #   sum over TSS
+#     #   argmax over TSS sigma 3, 8, 16
+#     #   sum over TSS sigma 3, 8, 16
+#     batch_size = embeddings.shape[0]
+#     scaled_cage_expression = cage_expression * tss_tensors
+
+#     tss_emb = embeddings[:, tss]
+#     sum_emb = embeddings.sum(dim=1)
+#     max_inds = torch.argmax(cage_expression, dim=-1)
+#     amax_emb = embeddings[torch.arange(batch_size), max_inds]
+    
+#     max_inds = torch.argmax(scaled_cage_expression, dim=-1)
+#     amax_tss_emb = embeddings[torch.arange(batch_size), max_inds]
+#     sum_tss_emb = (embeddings * scaled_cage_expression.unsqueeze(dim=-1)).sum(dim=1)
+
+#     all_emb = [tss_emb, sum_emb, amax_emb, amax_tss_emb, sum_tss_emb]
+#     for sigma in sigmas:
+#         ks = 2 * int(sigma / 2 * 3) + 1
+#         tss_tensors_conv = gaussian_filter_1d(tss_tensors, kernel_size=ks, sigma=sigma)
+#         scaled_cage_expression = cage_expression * tss_tensors_conv
+#         max_inds = torch.argmax(scaled_cage_expression, dim=-1)
+
+#         amax_tss_emb = embeddings[torch.arange(batch_size), max_inds]
+#         sum_tss_emb = (embeddings * scaled_cage_expression.unsqueeze(dim=-1)).sum(dim=1)
+
+#         all_emb.append(amax_tss_emb)
+#         all_emb.append(sum_tss_emb)
+
+#     return torch.stack(all_emb, dim=0) # 5 + 2 * len(sigmas)
+
+
+# def extract_embeddings(embeddings, cage_expression, tss_tensors, sigmas, tss):
+#     # Embeddings include
+#     #   TSS -1, 0, 1
+#     #   argmax over TSS -1, 0, 1
+#     batch_size = embeddings.shape[0]
+#     len_seq = tss_tensors.shape[1] - 1
+#     scaled_cage_expression = cage_expression * tss_tensors
+
+#     tss_emb = embeddings[:, tss]
+#     tss_emb_m1 = embeddings[:, tss - 1]
+#     tss_emb_1 = embeddings[:, tss + 1]
+
+#     max_inds = torch.argmax(scaled_cage_expression, dim=-1)
+#     amax_emb = embeddings[torch.arange(batch_size), max_inds]
+#     amax_emb_m1 = embeddings[torch.arange(batch_size), torch.clip(max_inds - 1, 0, len_seq)]
+#     amax_emb_1 = embeddings[torch.arange(batch_size), torch.clip(max_inds + 1, 0, len_seq)]
+    
+#     all_emb = [tss_emb, tss_emb_m1, tss_emb_1, amax_emb, amax_emb_m1, amax_emb_1]
+#     return torch.stack(all_emb, dim=0) # 6
+
+def extract_embeddings(embeddings, cage_expression, tss_tensors, sigmas, tss):
+    # Embeddings include
+    #   argmax over TSS -1, 0, 1 for top 5
+    batch_size = embeddings.shape[0]
+    len_seq = tss_tensors.shape[1] - 1
+    scaled_cage_expression = cage_expression * tss_tensors
+
+    max_inds = torch.argmax(scaled_cage_expression, dim=-1)
+    tok_values, topk_inds = torch.topk(scaled_cage_expression, 10, dim=-1)
+    topk_inds[tok_values == 0] = tss
+
+    all_emb = []
+    for i in range(topk_inds.shape[1]):
+        max_inds = topk_inds[:, i]
+        amax_emb = embeddings[torch.arange(batch_size), max_inds]
+        amax_emb_m2 = embeddings[torch.arange(batch_size), torch.clip(max_inds - 2, 0, len_seq)]
+        amax_emb_m1 = embeddings[torch.arange(batch_size), torch.clip(max_inds - 1, 0, len_seq)]
+        amax_emb_1 = embeddings[torch.arange(batch_size), torch.clip(max_inds + 1, 0, len_seq)]
+        amax_emb_2 = embeddings[torch.arange(batch_size), torch.clip(max_inds + 2, 0, len_seq)]
+        all_emb += [amax_emb, amax_emb_m2, amax_emb_m1, amax_emb_1, amax_emb_2]
+    return torch.stack(all_emb, dim=0) # 15
 
 ##############################################################################
 ##############################################################################
@@ -88,7 +171,7 @@ if __name__ == "__main__":
     FASTA_PT = BASE_PT + "/Homo_sapiens.GRCh38.dna.toplevel.fa"
     GENE_INTERVALS_PT = BASE_PT + "/Homo_sapiens.GRCh38.genes.bed"
     EMBEDDING_PT = BASE_PT + "/Homo_sapiens.GRCh38.genes.enformer_embeddings.zarr"
-    EMBEDDING_PT_TSS = BASE_PT + "/Homo_sapiens.GRCh38.genes.enformer_embeddings_tss_max_0.zarr"
+    EMBEDDING_PT_TSS = BASE_PT + "/Homo_sapiens.GRCh38.genes.enformer_embeddings_5x_top10_pc_0.zarr"
     MODEL_PT = "EleutherAI/enformer-official-rough"
     TARGET_PT = BASE_PT + '/targets_human.txt'
 
@@ -119,7 +202,7 @@ if __name__ == "__main__":
     NUM_GENES = len(ds)
     TSS = int(SEQ_EMBED_DIM // 2)
 
-    SIGMA = None
+    sigmas = [3, 8, 16, 32, 64]
 
     paths = (Path(EMBEDDING_PT), Path(EMBEDDING_PT_TSS))
  
@@ -135,8 +218,9 @@ if __name__ == "__main__":
     z_embedding_tss = zarr.open(
         EMBEDDING_PT_TSS,
         mode="w",
-        shape=(NUM_GENES, EMBED_DIM),
-        chunks=(1, EMBED_DIM),
+        # shape=(5 + 2*len(sigmas), NUM_GENES, EMBED_DIM),
+        shape=(50, NUM_GENES, EMBED_DIM),
+        chunks=(1, 1, EMBED_DIM),
         dtype='float32',
     )
 
@@ -146,24 +230,16 @@ if __name__ == "__main__":
         tss_tensors = []
         for label in labels:
             tss_tensors.append(torch.from_numpy(get_tss(label, tss=TSS, length=SEQ_EMBED_DIM)))
-
         tss_tensors = torch.stack(tss_tensors, dim=0).to(DEVICE)
-
-        if SIGMA is not None:
-            tss_tensors = gaussian_filter_1d(tss_tensors, kernel_size=16, sigma=SIGMA)
 
         # calculate embedding
         with torch.no_grad():
             output, embeddings = model(batch.to(DEVICE), return_embeddings=True)
             
             cage_expression = output['human'][:, :, cage_indices].mean(dim=-1)
-            scaled_cage_expression = cage_expression * tss_tensors
-            max_inds = torch.argmax(cage_expression, dim=-1)
-            tss_embedding = embeddings[torch.arange(batch_size), max_inds]
-            
-            # tss_embedding = embeddings[:, TSS]
+            tss_embedding = extract_embeddings(embeddings, cage_expression, tss_tensors, sigmas=sigmas, tss=TSS)
 
         # save full and reduced embeddings
         # z_embedding_full[index : index + batch_size] = embeddings
-        z_embedding_tss[index : index + batch_size] = tss_embedding.cpu().numpy()
+        z_embedding_tss[:, index : index + batch_size] = tss_embedding.cpu().numpy()
         index += batch_size

@@ -54,15 +54,20 @@ class RosaDataset(Dataset):
         self.n_bins = self.transform[-1].n_bins
 
         # prepare var input, shape n_var x var_dim
-        if var_input in adata.varm.keys():
-            var_input_0 = ToTensor()(adata.varm[var_input])
+        if True: #var_input in adata.varm.keys():
+            var_input_names = list(adata.varm.keys())
+            var_inputs = []
+            for name in var_input_names:
+                var_inputs.append(ToTensor()(adata.varm[name]))
             # Add additional var inputs
-            var_input_1 = ToTensor()(adata.varm[var_input + '_1'])
-            var_input_2 = ToTensor()(adata.varm[var_input + '_2'])
-            var_input_m1 = ToTensor()(adata.varm[var_input + '_m1'])
-            var_input_m2 = ToTensor()(adata.varm[var_input + '_m2'])
-            self.var_input = torch.stack([var_input_0, var_input_1, var_input_2, var_input_m1, var_input_m2], dim=0)
+            # var_input_1 = ToTensor()(adata.varm[var_input + '_1'])
+            # var_input_2 = ToTensor()(adata.varm[var_input + '_2'])
+            # var_input_m1 = ToTensor()(adata.varm[var_input + '_m1'])
+            # var_input_m2 = ToTensor()(adata.varm[var_input + '_m2'])
+            # self.var_input = torch.stack([var_input_0, var_input_1, var_input_2, var_input_m1, var_input_m2], dim=0)
             # self.var_input = torch.stack([var_input_0, var_input_1], dim=0)
+            # self.var_input = var_input_0.unsqueeze(dim=0)
+            self.var_input = torch.stack(var_inputs, dim=0)
         elif var_input[-3:] == ".fa":
             self.var_input = AdataFastaInterval(adata, var_input)  # type: ignore
         else:
