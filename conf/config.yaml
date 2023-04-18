@@ -12,7 +12,7 @@ hydra:
 paths:
   base: /home/ec2-user/cell_census # /home/ec2-user/ or /Users/nsofroniew/Documents/data/multiomics/
   dataset: tabula_sapiens
-  preprocessed: _trio_top5_pc__sample_${preprocessing.bulk_data.sample_col}__label_${preprocessing.bulk_data.label_col}
+  preprocessed: _5x_top10_pc__sample_${preprocessing.bulk_data.sample_col}__label_${preprocessing.bulk_data.label_col}
   chkpt: null #/home/ec2-user/outputs/2023-04-01/16-59-32/checkpoints/last.ckpt
 
 module:

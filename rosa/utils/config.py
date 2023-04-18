@@ -157,6 +157,7 @@ class ModelConfig:
 @dataclass
 class OptimizerConfig:
     learning_rate: float
+    var_learning_rate: float
     beta_1: float
     beta_2: float
     eps: float

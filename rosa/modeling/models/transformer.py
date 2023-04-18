@@ -23,7 +23,9 @@ class RosaTransformer(nn.Module):
         )
 
         # Create var embedding
-        self.var_embedding = LinearEmbed(in_dim, config=config.var_embed)
+        # self.var_embedding = LinearEmbed(in_dim, config=config.var_embed)
+        self.var_embedding = BinnedEmbed(19431, config=config.var_embed)
+        self.var_embedding.requires_grad_(False)
 
         # Add transformer if using
         if config.transformer.depth == 0:
@@ -60,3 +62,13 @@ class RosaTransformer(nn.Module):
             x = self.transformer(x, mask=~batch["mask"])  # type: ignore
 
         return self.expression_head(x)  # type: ignore
+    
+    def base_parameters(self):
+        return [
+                {'params': self.expression_embedding.parameters()},
+                {'params': self.transformer.parameters()},
+                {'params': self.expression_head.parameters()},
+                ]
+
+    def var_parameters(self):
+        return {'params': self.var_embedding.parameters()}

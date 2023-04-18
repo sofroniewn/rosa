@@ -57,7 +57,7 @@ class RosaDataset(Dataset):
         if True: #var_input in adata.varm.keys():
             var_input_names = list(adata.varm.keys())
             var_inputs = []
-            for name in var_input_names:
+            for name in var_input_names[:5]:
                 var_inputs.append(ToTensor()(adata.varm[name]))
             # Add additional var inputs
             # var_input_1 = ToTensor()(adata.varm[var_input + '_1'])
@@ -66,8 +66,11 @@ class RosaDataset(Dataset):
             # var_input_m2 = ToTensor()(adata.varm[var_input + '_m2'])
             # self.var_input = torch.stack([var_input_0, var_input_1, var_input_2, var_input_m1, var_input_m2], dim=0)
             # self.var_input = torch.stack([var_input_0, var_input_1], dim=0)
-            # self.var_input = var_input_0.unsqueeze(dim=0)
-            self.var_input = torch.stack(var_inputs, dim=0)
+            self.var_input = var_inputs[0].unsqueeze(dim=0)
+            # tmp = torch.stack([var_inputs[0], var_inputs[2], var_inputs[3]], dim=0)
+            # self.var_input = torch.stack(var_inputs, dim=0)
+            # tmp = torch.stack(var_inputs, dim=0)
+            # self.var_input = tmp.swapaxes(axis0=0, axis1=1).reshape(var_inputs[0].shape[0], -1).unsqueeze(dim=0)
         elif var_input[-3:] == ".fa":
             self.var_input = AdataFastaInterval(adata, var_input)  # type: ignore
         else:

@@ -6,6 +6,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from pytorch_lightning import LightningModule
+from torchmetrics.functional import spearman_corrcoef
 from scanpy.plotting._matrixplot import MatrixPlot
 
 from ..utils import merge_images, score_predictions
@@ -46,16 +47,41 @@ class RosaLightningModule(LightningModule):
     def training_step(self, batch, _):
         expression = batch["expression_target"]
 
-        var_input = self.var_input[:, batch["var_indices"]]
+        # var_input = self.var_input[:, batch["var_indices"]]
+        batch["var_input"] = batch["var_indices"]
+        
+        # sigma = 1.0
+        # var_input += sigma * torch.randn_like(var_input)
+
         # Randomly switch between var input indices for random sampling
-        random_indices = torch.randint(0, var_input.shape[0], (var_input.shape[1],))
-        batch["var_input"] = var_input[random_indices, torch.arange(var_input.shape[1])]
+        # random_indices = torch.randint(0, var_input.shape[0], (var_input.shape[1],))
+        # batch["var_input"] = var_input[random_indices, torch.arange(var_input.shape[1])]
         # batch["var_input"] = var_input[0]
 
         expression_predicted = self(batch)
         expression_predicted = expression_predicted[batch["mask"]]
         expression = expression[batch["mask"]]
+
+        # predicted, _ = sample(expression_predicted, nbins=self.n_bins)
+        # spearman_obs_mean = 1 - spearman_corrcoef(predicted.T.float(), expression.T.float()).mean()
+        # spearman_var_mean = 1 - spearman_corrcoef(predicted.float(), expression.float()).mean()
+        # spearman_var_mean = 0.0
+        # beta_obs_loss = 1.0
+        # beta_var_loss = 1.0
+        
         loss = self.criterion(expression_predicted, expression)
+
+        # self.log(
+        #     "train_ce_loss", ce_loss, on_step=False, on_epoch=True, prog_bar=True, logger=True
+        # )
+        # self.log(
+        #     "train_obs_loss", spearman_obs_mean, on_step=False, on_epoch=True, prog_bar=True, logger=True
+        # )
+        # self.log(
+        #     "train_var_loss", spearman_var_mean, on_step=False, on_epoch=True, prog_bar=True, logger=True
+        # )
+        # loss = ce_loss + beta_obs_loss * spearman_obs_mean + beta_var_loss * spearman_var_mean
+
         self.log(
             "train_loss", loss, on_step=False, on_epoch=True, prog_bar=True, logger=True
         )
@@ -75,15 +101,35 @@ class RosaLightningModule(LightningModule):
 
     def validation_step(self, batch, batch_idx, dataloader_idx=0):
         expression = batch["expression_target"]
-        batch["var_input"] = self.var_input[0, batch["var_indices"]]
+        batch["var_input"] = batch["var_indices"]
+        # batch["var_input"] = self.var_input[0, batch["var_indices"]]
         expression_predicted = self(batch)
         batch_size = batch["mask"].shape[0]
-
         expression_predicted = expression_predicted[batch["mask"]]
         expression = expression[batch["mask"]]
+
+        # predicted, _ = sample(expression_predicted, nbins=self.n_bins)
+        # spearman_obs_mean = 1 - spearman_corrcoef(predicted.T.float(), expression.T.float()).mean()
+        # spearman_var_mean = 0.0
+        # spearman_var_mean = 1 - spearman_corrcoef(predicted.float(), expression.float()).mean()
+        # beta_obs_loss = 1.0
+        # beta_var_loss = 1.0
+
         loss = self.criterion(expression_predicted, expression)
+
+        # self.log(
+        #     "val_ce_loss", ce_loss, on_step=False, on_epoch=True, prog_bar=True, logger=True
+        # )
+        # self.log(
+        #     "val_obs_loss", spearman_obs_mean, on_step=False, on_epoch=True, prog_bar=True, logger=True
+        # )
+        # self.log(
+        #     "val_var_loss", spearman_var_mean, on_step=False, on_epoch=True, prog_bar=True, logger=True
+        # )
+        # loss = ce_loss + beta_obs_loss * spearman_obs_mean + beta_var_loss * spearman_var_mean
+
         self.log(
-            "val_loss", loss, on_epoch=True, prog_bar=True, logger=True, sync_dist=True
+            "val_loss", loss, on_step=False, on_epoch=True, prog_bar=True, logger=True
         )
 
         results = {}
@@ -195,8 +241,13 @@ class RosaLightningModule(LightningModule):
                 )
 
     def configure_optimizers(self):
+        params = self.model.base_parameters()
+        var_params = self.model.var_parameters()
+        var_params['lr'] : self.optim_config.var_learning_rate
+        var_params['weight_decay'] : self.optim_config.var_weight_decay
+        params.append(var_params)
         optimizer = optim.AdamW(
-            self.model.parameters(),
+            params,
             lr=self.optim_config.learning_rate,
             betas=(self.optim_config.beta_1, self.optim_config.beta_2),
             eps=self.optim_config.eps,
