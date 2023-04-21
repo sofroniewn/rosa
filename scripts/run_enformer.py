@@ -3,6 +3,7 @@ import numpy as np
 from pyensembl import EnsemblRelease
 import torch
 import torch.nn.functional as F
+from enformer_pytorch.data import str_to_one_hot
 
 
 def gaussian_kernel_1d(kernel_size, sigma):
@@ -32,6 +33,22 @@ class MyGenomeIntervalDataset(GenomeIntervalDataset):
         item = super().__getitem__(ind)
         label = self.df.row(ind)[4]
         return label, item
+
+
+class MyGenomeIntervalVariantDataset(GenomeIntervalDataset):
+    def __init__(self, **kwargs):
+        super(MyGenomeIntervalVariantDataset, self).__init__(**kwargs)
+
+    def __getitem__(self, ind):
+        item = super().__getitem__(ind)
+        label = self.df.row(ind)[4]
+        start = self.df.row(ind)[1]
+        pos = self.df.row(ind)[5]
+        ref = self.df.row(ind)[6]
+        alt = self.df.row(ind)[7]
+        loc = pos - start - 1
+        assert abs(item[loc] - str_to_one_hot(ref)).max() == 0.0 # confirm ref match
+        return label, item, loc, str_to_one_hot(alt)
 
 
 genome = EnsemblRelease(77)
@@ -169,9 +186,12 @@ if __name__ == "__main__":
     # DEVICE = "cpu"
 
     FASTA_PT = BASE_PT + "/Homo_sapiens.GRCh38.dna.toplevel.fa"
-    GENE_INTERVALS_PT = BASE_PT + "/Homo_sapiens.GRCh38.genes.bed"
+    # GENE_INTERVALS_PT = BASE_PT + "/Homo_sapiens.GRCh38.genes.bed"
+    GENE_INTERVALS_PT = BASE_PT + "/Homo_sapiens.GRCh38.genes.clinvar.vcf.bed"
     EMBEDDING_PT = BASE_PT + "/Homo_sapiens.GRCh38.genes.enformer_embeddings.zarr"
-    EMBEDDING_PT_TSS = BASE_PT + "/Homo_sapiens.GRCh38.genes.enformer_embeddings_5x_top10_pc_0.zarr"
+    # EMBEDDING_PT_TSS = BASE_PT + "/Homo_sapiens.GRCh38.genes.enformer_embeddings_5x_top10_pc_0.zarr"
+    EMBEDDING_PT_TSS = BASE_PT + "/Homo_sapiens.GRCh38.genes.enformer_embeddings_var_0.zarr"
+    EMBEDDING_PT_TSS_INDS = BASE_PT + "/Homo_sapiens.GRCh38.genes.enformer_embeddings_inds.zarr"
     MODEL_PT = "EleutherAI/enformer-official-rough"
     TARGET_PT = BASE_PT + '/targets_human.txt'
 
@@ -182,7 +202,7 @@ if __name__ == "__main__":
     model = Enformer.from_pretrained(MODEL_PT, output_heads=dict(human = 5313), use_checkpointing = False)
     model.to(DEVICE)
 
-    ds = MyGenomeIntervalDataset(
+    ds = MyGenomeIntervalVariantDataset(
         bed_file=GENE_INTERVALS_PT,  # bed file - columns 0, 1, 2 must be <chromosome>, <start position>, <end position>
         fasta_file=FASTA_PT,  # path to fasta file
         return_seq_indices=False,  # return nucleotide indices (ACGTN) or one hot encodings
@@ -190,6 +210,10 @@ if __name__ == "__main__":
         filter_df_fn=filter_df_fn,
     )
     dl = DataLoader(ds, batch_size=2, shuffle=False, num_workers=0) # type: DataLoader
+
+    z_inds = zarr.open(EMBEDDING_PT_TSS_INDS)
+    genes = list(adata.var_names)
+    max_inds_dict = dict(zip(genes, list(z_inds[:])))
 
     # targets_txt = 'https://raw.githubusercontent.com/calico/basenji/0.5/manuscripts/cross2020/targets_human.txt'
     # df_targets = pd.read_csv(targets_txt, sep='\t')
@@ -215,31 +239,65 @@ if __name__ == "__main__":
     #     dtype='float32',
     # )
 
+    # z_embedding_tss = zarr.open(
+    #     EMBEDDING_PT_TSS,
+    #     mode="w",
+    #     # shape=(5 + 2*len(sigmas), NUM_GENES, EMBED_DIM),
+    #     shape=(50, NUM_GENES, EMBED_DIM),
+    #     chunks=(1, 1, EMBED_DIM),
+    #     dtype='float32',
+    # )
+
     z_embedding_tss = zarr.open(
         EMBEDDING_PT_TSS,
-        mode="w",
+        mode="rw",
         # shape=(5 + 2*len(sigmas), NUM_GENES, EMBED_DIM),
-        shape=(50, NUM_GENES, EMBED_DIM),
-        chunks=(1, 1, EMBED_DIM),
+        shape=(NUM_GENES, EMBED_DIM),
+        chunks=(1, EMBED_DIM),
         dtype='float32',
     )
 
     index = 0
-    for labels, batch in tqdm(dl):
-        batch_size = len(labels)
-        tss_tensors = []
-        for label in labels:
-            tss_tensors.append(torch.from_numpy(get_tss(label, tss=TSS, length=SEQ_EMBED_DIM)))
-        tss_tensors = torch.stack(tss_tensors, dim=0).to(DEVICE)
+    # for labels, batch in tqdm(dl):
+    #     batch_size = len(labels)
+    #     tss_tensors = []
+    #     for label in labels:
+    #         tss_tensors.append(torch.from_numpy(get_tss(label, tss=TSS, length=SEQ_EMBED_DIM)))
+    #     tss_tensors = torch.stack(tss_tensors, dim=0).to(DEVICE)
 
-        # calculate embedding
-        with torch.no_grad():
-            output, embeddings = model(batch.to(DEVICE), return_embeddings=True)
+    #     # calculate embedding
+    #     with torch.no_grad():
+    #         output, embeddings = model(batch.to(DEVICE), return_embeddings=True)
             
-            cage_expression = output['human'][:, :, cage_indices].mean(dim=-1)
-            tss_embedding = extract_embeddings(embeddings, cage_expression, tss_tensors, sigmas=sigmas, tss=TSS)
+    #         cage_expression = output['human'][:, :, cage_indices].mean(dim=-1)
+    #         # tss_embedding = extract_embeddings(embeddings, cage_expression, tss_tensors, sigmas=sigmas, tss=TSS)
 
-        # save full and reduced embeddings
-        # z_embedding_full[index : index + batch_size] = embeddings
-        z_embedding_tss[:, index : index + batch_size] = tss_embedding.cpu().numpy()
+    #         batch_size = embeddings.shape[0]
+    #         len_seq = tss_tensors.shape[1] - 1
+    #         scaled_cage_expression = cage_expression * tss_tensors
+
+    #         max_inds = torch.argmax(scaled_cage_expression, dim=-1)
+        
+    #     z_embedding_tss_max_inds[index : index + batch_size] = max_inds.cpu().numpy()
+    #     # save full and reduced embeddings
+    #     # z_embedding_full[index : index + batch_size] = embeddings
+    #     # z_embedding_tss[:, index : index + batch_size] = tss_embedding.cpu().numpy()
+    #     index += batch_size
+
+    for labels, batch, pos, alt in tqdm(dl):
+        batch_size = len(labels)
+        if abs(z_embedding_tss[index : index + batch_size]).max() == 0:
+            max_inds = []
+            for label in labels:
+                max_inds.append(max_inds_dict[label])
+
+            # calculate embedding
+            with torch.no_grad():
+                # Add mutation
+                batch[torch.arange(batch.shape[0]), pos] = alt.squeeze(dim=1)
+                output, embeddings = model(batch.to(DEVICE), return_embeddings=True)            
+                batch_size = embeddings.shape[0]
+                tss_embedding = embeddings[torch.arange(batch_size), max_inds]
+
+            z_embedding_tss[index : index + batch_size] = tss_embedding.cpu().numpy()
         index += batch_size
