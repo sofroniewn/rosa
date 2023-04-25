@@ -24,20 +24,20 @@ model = SCVI(
 
 # Train model
 if scvi_model_pt.exists():
-    print(f'Loading Model')
+    print(f"Loading Model")
     model.load(scvi_model_pt, adata=adata)
 else:
-    print(f'Training Model')
+    print(f"Training Model")
     model.train()
     model.save(scvi_model_pt, overwrite=True)
 
 # Compute differential expression
 if scvi_de.exists():
-    print(f'Loading Differential Expression')
+    print(f"Loading Differential Expression")
     df = pd.read_csv(scvi_de, index_col=0)
 else:
-    print(f'Computing Differential Expression')
+    print(f"Computing Differential Expression")
     df = model.differential_expression(groupby=LABEL)
     df.to_csv(scvi_de)
 
-print('Done')
+print("Done")

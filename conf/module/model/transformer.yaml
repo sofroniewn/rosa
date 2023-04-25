@@ -4,18 +4,18 @@ transformer:
   dim: ${module.model.dim}
   heads: 20 # 4 5 20
   dim_head: 16 # 32 64 16
-  depth: 6 # 4 6 6
+  depth: 1 # 4 6 6
   dropout: 0.1
 expression_embed:
   pre_layer_norm: False
   layer_norm: True
   dropout_prob: 0.1
   dim: ${module.model.dim}
-var_embed:
-  pre_layer_norm: False
-  layer_norm: True
-  dropout_prob: 0.1
-  dim: ${module.model.dim}
+var_embed: null
+  # pre_layer_norm: True
+  # layer_norm: True
+  # dropout_prob: 0.1
+  # dim: ${module.model.dim}
 expression_head:
   dropout_prob: 0.1
   projection: True

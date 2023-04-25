@@ -190,4 +190,3 @@ class RosaConfig:
     data_module: DataModuleConfig
     module: ModuleConfig
     trainer: TrainerConfig
-

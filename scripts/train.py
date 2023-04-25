@@ -9,9 +9,11 @@ cs.store(name="rosa_config", node=RosaConfig)
 CONFIG_PATH = "../conf"
 CONFIG_NAME = "config"
 
+
 @hydra.main(config_path=CONFIG_PATH, config_name=CONFIG_NAME)
 def main(config: RosaConfig) -> None:
     import os
+
     print("Working directory : {}".format(os.getcwd()))
     train(config)
 

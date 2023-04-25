@@ -48,8 +48,9 @@ class RosaLightningModule(LightningModule):
         expression = batch["expression_target"]
 
         # var_input = self.var_input[:, batch["var_indices"]]
-        batch["var_input"] = batch["var_indices"]
-        
+        # batch["var_input"] = batch["var_indices"]
+        batch["var_input"] = self.var_input[0, batch["var_indices"]]
+
         # sigma = 1.0
         # var_input += sigma * torch.randn_like(var_input)
 
@@ -68,7 +69,7 @@ class RosaLightningModule(LightningModule):
         # spearman_var_mean = 0.0
         # beta_obs_loss = 1.0
         # beta_var_loss = 1.0
-        
+
         loss = self.criterion(expression_predicted, expression)
 
         # self.log(
@@ -101,8 +102,8 @@ class RosaLightningModule(LightningModule):
 
     def validation_step(self, batch, batch_idx, dataloader_idx=0):
         expression = batch["expression_target"]
-        batch["var_input"] = batch["var_indices"]
-        # batch["var_input"] = self.var_input[0, batch["var_indices"]]
+        # batch["var_input"] = batch["var_indices"]
+        batch["var_input"] = self.var_input[0, batch["var_indices"]]
         expression_predicted = self(batch)
         batch_size = batch["mask"].shape[0]
         expression_predicted = expression_predicted[batch["mask"]]
@@ -243,8 +244,8 @@ class RosaLightningModule(LightningModule):
     def configure_optimizers(self):
         params = self.model.base_parameters()
         var_params = self.model.var_parameters()
-        var_params['lr'] : self.optim_config.var_learning_rate
-        var_params['weight_decay'] : self.optim_config.var_weight_decay
+        var_params["lr"]: self.optim_config.var_learning_rate
+        var_params["weight_decay"]: self.optim_config.var_weight_decay
         params.append(var_params)
         optimizer = optim.AdamW(
             params,
@@ -254,7 +255,9 @@ class RosaLightningModule(LightningModule):
             weight_decay=self.optim_config.weight_decay,
         )
         self.lr_scheduler = CosineWarmupScheduler(
-            optimizer, warmup=self.optim_config.warmup, max_iters=self.optim_config.max_iters
+            optimizer,
+            warmup=self.optim_config.warmup,
+            max_iters=self.optim_config.max_iters,
         )
         return optimizer
 

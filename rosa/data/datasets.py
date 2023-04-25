@@ -54,7 +54,7 @@ class RosaDataset(Dataset):
         self.n_bins = self.transform[-1].n_bins
 
         # prepare var input, shape n_var x var_dim
-        if True: #var_input in adata.varm.keys():
+        if True:  # var_input in adata.varm.keys():
             var_input_names = list(adata.varm.keys())
             var_inputs = []
             for name in var_input_names[:5]:
