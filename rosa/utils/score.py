@@ -2,6 +2,7 @@ from torchmetrics.functional import spearman_corrcoef
 from torchmetrics.functional.classification import (
     multiclass_confusion_matrix,
 )
+import torch
 
 
 def score_predictions(predicted, target, nbins):
@@ -14,9 +15,10 @@ def score_predictions(predicted, target, nbins):
     results["spearman_obs_mean"] = results["spearman_obs"].mean()
     results["spearman_var_mean"] = results["spearman_var"].mean()
 
-    results["confusion_matrix"] = multiclass_confusion_matrix(
-        predicted.ravel(), target.ravel(), nbins
-    )
+    results["confusion_matrix"] = torch.zeros((nbins, nbins))
+    # results["confusion_matrix"] = multiclass_confusion_matrix(
+    #     predicted.ravel(), target.ravel(), nbins
+    # )
     return results
 
 
