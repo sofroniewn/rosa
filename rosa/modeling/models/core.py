@@ -28,8 +28,10 @@ class CrossAttentionHead(nn.Module):
         head_dim_value: int,
     ):
         super(CrossAttentionHead, self).__init__()
-        self.q = nn.Linear(embed_dim_key, head_dim_key)
-        self.k = nn.Linear(embed_dim_key, head_dim_key)
+        # self.q = nn.Linear(embed_dim_key, head_dim_key)
+        # self.k = nn.Linear(embed_dim_key, head_dim_key)
+        self.q = nn.Identity()
+        self.k = nn.Identity()
         self.v = nn.Linear(embed_dim_value, head_dim_value)
 
     def forward(self, hidden_state_key, hidden_state_value, mask=None):
@@ -77,12 +79,8 @@ class FeedForward(nn.Module):
 
 
 class CrossTransformerEncoderLayer(nn.Module):
-    def __init__(self):
+    def __init__(self, embed_dim_key, embed_dim_value, num_heads, hidden_dropout_prob):
         super(CrossTransformerEncoderLayer, self).__init__()
-        embed_dim_key = 3072
-        embed_dim_value = 320
-        num_heads = 20
-        hidden_dropout_prob = 0.1
 
         self.layer_norm_key_1 = nn.LayerNorm(embed_dim_key)
         self.layer_norm_value_1 = nn.LayerNorm(embed_dim_value)
@@ -103,7 +101,13 @@ class CrossTransformerEncoderLayer(nn.Module):
 class Core(nn.Module):
     def __init__(self, dim):
         super(Core, self).__init__()
-        self.core = MultiHeadCrossAttention(3072, 320, 1)
+        embed_dim_key = 3072
+        embed_dim_value = 320
+        num_heads = 1
+        hidden_dropout_prob = 0.1
+
+        # self.core = MultiHeadCrossAttention(embed_dim_key, embed_dim_value, num_heads)
+        self.core = CrossTransformerEncoderLayer(embed_dim_key, embed_dim_value, num_heads, hidden_dropout_prob)
 
     def forward(self, x, y, mask=None):
         return self.core(x, y, mask=mask)

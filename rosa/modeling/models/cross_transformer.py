@@ -53,8 +53,8 @@ class RosaTransformer(nn.Module):
         # false for values that should be ignored
         if self.transformer is not None:
             # x = self.transformer(var, expression)
-            x = self.transformer(var, expression, mask=~batch["mask"])
-        return self.expression_head(x)  # type: ignore
+            expression = self.transformer(var, expression, mask=~batch["mask"])
+        return self.expression_head(expression)  # type: ignore
 
     def base_parameters(self):
         param = [
