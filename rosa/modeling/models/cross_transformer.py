@@ -18,9 +18,16 @@ class RosaTransformer(nn.Module):
         super(RosaTransformer, self).__init__()
 
         # Create expression embedding
-        self.expression_embedding = BinnedEmbed(
-            config.n_bins + 1, config=config.expression_embed
+        self.expression_params = nn.Parameter(
+            torch.randn(config.n_bins + 1, config.transformer.dim)
         )
+        self.expression_embedding = nn.Embedding.from_pretrained(
+            self.expression_params, freeze=False
+        )
+
+        # self.expression_embedding = BinnedEmbed(
+        #     config.n_bins + 1, config=config.expression_embed
+        # )
 
         # Create var embedding
         if config.var_embed is None:
@@ -36,11 +43,7 @@ class RosaTransformer(nn.Module):
         else:
             self.transformer = Core(dim=config.transformer.dim)
 
-        self.expression_head = LinearHead(
-            config.dim,
-            1,
-            config=config.expression_head,
-        )
+        # self.expression_head = nn.Linear(config.transformer.dim, config.n_bins)
 
     def forward(
         self, batch: Dict[str, torch.Tensor]
@@ -54,16 +57,20 @@ class RosaTransformer(nn.Module):
         if self.transformer is not None:
             # x = self.transformer(var, expression)
             expression = self.transformer(var, expression, mask=~batch["mask"])
-        return self.expression_head(expression)  # type: ignore
 
-    def base_parameters(self):
-        param = [
-            {"params": self.expression_embedding.parameters()},
-            {"params": self.expression_head.parameters()},
-        ]
-        if self.transformer is not None:
-            param.append({"params": self.transformer.parameters()})
-        return param
+        expression = torch.einsum(
+            "b i j, k j -> b i k", expression, self.expression_params[:-1, :]
+        )
+        # expression = self.expression_head(expression)
+        return expression
 
-    def var_parameters(self):
-        return {"params": self.var_embedding.parameters()}
+    # def base_parameters(self):
+    #     param = [
+    #         {"params": self.expression_params},
+    #     ]
+    #     if self.transformer is not None:
+    #         param.append({"params": self.transformer.parameters()})
+    #     return param
+
+    # def var_parameters(self):
+    #     return {"params": self.var_embedding.parameters()}
