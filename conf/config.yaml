@@ -13,7 +13,7 @@ paths:
   base: /home/ec2-user/cell_census # /home/ec2-user/ or /Users/nsofroniew/Documents/data/multiomics/
   dataset: tabula_sapiens
   preprocessed: _5x_top10_pc__sample_${preprocessing.bulk_data.sample_col}__label_${preprocessing.bulk_data.label_col}
-  chkpt: /home/ec2-user/outputs/2023-04-28/22-19-08/checkpoints/last.ckpt # null
+  chkpt: null #/home/ec2-user/outputs/2023-05-01/19-10-27/checkpoints/last.ckpt # null
 
 module:
   criterion:
