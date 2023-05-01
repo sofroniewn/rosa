@@ -145,7 +145,7 @@ class Core(nn.Module):
     def __init__(self, dim):
         super(Core, self).__init__()
         num_hidden_layers = 2
-        embed_dim_key = 1024
+        embed_dim_key = 3072
         embed_dim_value = 32
         num_heads = 8
         hidden_dropout_prob = 0.1

@@ -304,8 +304,8 @@ class RosaLightningModule(LightningModule):
                     params.append(
                         {
                             "params": list(p.parameters()),
-                            "lr": self.optim_config.learning_rate / 1e2,
-                            "weight_decay": self.optim_config.weight_decay * 1e2,
+                            "lr": self.optim_config.learning_rate / 1e3,
+                            "weight_decay": self.optim_config.weight_decay * 1e3,
                         }
                     )
 
