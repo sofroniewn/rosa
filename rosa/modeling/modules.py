@@ -234,7 +234,7 @@ class RosaLightningModule(LightningModule):
         # cm = scores["confusion_matrix"]
         # cm_norm = cm / cm.sum(dim=1)[:, None]
 
-        # tensorboard_logger = self.logger.experiment
+        tensorboard_logger = self.logger.experiment
         # tensorboard_logger.add_image(
         #     "confusion_matrix",
         #     torch.flip(cm_norm, (0,)),
