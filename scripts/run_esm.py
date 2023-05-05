@@ -8,16 +8,21 @@ if __name__ == "__main__":
     import torch
 
 
-    GENE2PROTEIN_PATH = '/home/ec2-user/rosa/notebooks/gene2protein_coding.csv'
-    PROTEIN_EMBED_PATH = "/home/ec2-user/esm/ESM_proteins_embeddings_var_0.zarr"
+    # GENE2PROTEIN_PATH = '/home/ec2-user/rosa/notebooks/gene2protein_coding.csv'
+    # PROTEIN_EMBED_PATH = "/home/ec2-user/esm/ESM_proteins_embeddings_var_0.zarr"
+    GENE2PROTEIN_PATH = '/home/ec2-user/rosa/notebooks/protein_loc.csv'
+    PROTEIN_EMBED_PATH = "/home/ec2-user/esm/ESM_proteins_loc_embeddings_var_0.zarr"
+
     EMBED_DIM = 1280
     EMBEDDING_LAYER = 33
     TRUNCATION_SEQ_LENGTH = 1024
     TOKENS_PER_BATCH = 2048
 
     # Load gene2protein mapping
-    df = pd.read_csv(GENE2PROTEIN_PATH, index_col='Gene stable ID')
-    sequences = df['Peptide'].apply(lambda x: x.replace('*', '')).values
+    # df = pd.read_csv(GENE2PROTEIN_PATH, index_col='Gene stable ID')
+    # sequences = df['Peptide'].apply(lambda x: x.replace('*', '')).values
+    df = pd.read_csv(GENE2PROTEIN_PATH)
+    sequences = df['seq']
     genes = df.index.values
     num_genes = len(genes)
 
