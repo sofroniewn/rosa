@@ -42,8 +42,8 @@ class RosaTransformer(nn.Module):
         #     self.transformer = None  # type: Optional[nn.Module]
         # else:
         self.transformer = PerceiverIO(
-            dim = 32 + 3072,             # dimension of sequence to be encoded
-            queries_dim = 3072,          # dimension of decoder queries
+            dim = 1024,             # dimension of sequence to be encoded
+            queries_dim = 1024,          # dimension of decoder queries
             logits_dim = config.n_bins,  # dimension of final logits
             depth = 2,                   # depth of net
             num_latents = 256,           # number of latents, or induced set points, or centroids. different papers giving it different names
@@ -56,7 +56,7 @@ class RosaTransformer(nn.Module):
             seq_dropout_prob = 0.2       # fraction of the tokens from the input sequence to dropout (structured dropout, for saving compute and regularizing effects)
         )
 
-        decoder_cross_attn = self.transformer.decoder_cross_attn
+        # decoder_cross_attn = self.transformer.decoder_cross_attn
         # decoder_cross_attn.fn.to_q = nn.Identity(3072)
         # decoder_cross_attn.fn.to_kv = nn.Linear(512, 3072 * 2, bias = False)
         # decoder_cross_attn.fn.to_out = nn.Identity(3072) #nn.Linear(3072, 3072)
@@ -76,9 +76,9 @@ class RosaTransformer(nn.Module):
 
         # attention mask is true for values where attention can look,
         # false for values that should be ignored
-        # input = var + expression
-        input = torch.concat([var, expression], dim=-1)
-        queries = batch["var_input"]
+        input = var + expression
+        # input = torch.concat([var, expression], dim=-1)
+        queries = var # batch["var_input"]
         expression = self.transformer(input, mask=~batch["mask"], queries=queries)
 
         # expression = torch.einsum(

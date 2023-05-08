@@ -1,5 +1,5 @@
 n_bins: ${data_module.data.expression_transform.n_bins}
-dim: 32 # 128 320
+dim: 1024 # 128 320
 transformer:
   dim: ${module.model.dim}
   heads: 20 # 4 5 20
@@ -11,11 +11,11 @@ expression_embed:
   layer_norm: True
   dropout_prob: 0.1
   dim: ${module.model.dim}
-var_embed: null
-  # pre_layer_norm: True
-  # layer_norm: True
-  # dropout_prob: 0.1
-  # dim: 64 #${module.model.dim}
+var_embed: #null
+  pre_layer_norm: True
+  layer_norm: True
+  dropout_prob: 0.1
+  dim: ${module.model.dim}
 expression_head:
   dropout_prob: 0.1
   projection: True
