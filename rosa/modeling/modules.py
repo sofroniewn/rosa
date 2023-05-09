@@ -34,12 +34,12 @@ class RosaLightningModule(LightningModule):
         self.criterion = nn.CrossEntropyLoss(weight=weight)
         self.n_bins = config.model.n_bins
 
-        self.adata = adata
-        self.target = None
-        self.marker_genes_dict = self.adata.obs.set_index("label").to_dict()[
-            "marker_feature_name"
-        ]
-        sc.tl.dendrogram(self.adata, groupby="label", use_rep="X")
+        # self.adata = adata
+        # self.target = None
+        # self.marker_genes_dict = self.adata.obs.set_index("label").to_dict()[
+        #     "marker_feature_name"
+        # ]
+        # sc.tl.dendrogram(self.adata, groupby="label", use_rep="X")
 
     def forward(self, batch):
         return self.model.forward(batch)
@@ -84,7 +84,11 @@ class RosaLightningModule(LightningModule):
         # loss = ce_loss + beta_obs_loss * spearman_obs_mean + beta_var_loss * spearman_var_mean
 
         self.log(
-            "train_loss", loss, on_step=False, on_epoch=True, prog_bar=True, logger=True
+            "train_loss", loss, on_step=True, on_epoch=False, prog_bar=True, logger=True
+        )
+
+        self.log(
+            "lr_njs", self.lr, on_step=True, on_epoch=False, prog_bar=True, logger=True
         )
 
         # n = 0
@@ -191,119 +195,119 @@ class RosaLightningModule(LightningModule):
         results["obs_idx"] = batch["obs_idx"]
         return results
 
-    def validation_epoch_end(self, results):
-        results = self.all_gather(results)
+    # def validation_epoch_end(self, results):
+    #     results = self.all_gather(results)
  
-        if self.global_rank != 0:
-            return
+    #     if self.global_rank != 0:
+    #         return
         
-        predicted = []
-        confidence = []
-        target = []
-        obs_idx = []
-        for batch in results:
-            expression_predicted_batch = batch["expression_predicted"]
-            expression_target_batch = batch["expression_target"]
-            obs_idx_batch = batch["obs_idx"]
-            if expression_predicted_batch.ndim == 4:
-                expression_predicted_batch = expression_predicted_batch.view(-1, expression_predicted_batch.shape[2], expression_predicted_batch.shape[3])
-            if expression_target_batch.ndim == 3:
-                expression_target_batch = expression_target_batch.view(-1, expression_target_batch.shape[2])
-            if obs_idx_batch.ndim == 2:
-                obs_idx_batch = obs_idx_batch.view(-1)
+    #     predicted = []
+    #     confidence = []
+    #     target = []
+    #     obs_idx = []
+    #     for batch in results:
+    #         expression_predicted_batch = batch["expression_predicted"]
+    #         expression_target_batch = batch["expression_target"]
+    #         obs_idx_batch = batch["obs_idx"]
+    #         if expression_predicted_batch.ndim == 4:
+    #             expression_predicted_batch = expression_predicted_batch.view(-1, expression_predicted_batch.shape[2], expression_predicted_batch.shape[3])
+    #         if expression_target_batch.ndim == 3:
+    #             expression_target_batch = expression_target_batch.view(-1, expression_target_batch.shape[2])
+    #         if obs_idx_batch.ndim == 2:
+    #             obs_idx_batch = obs_idx_batch.view(-1)
 
-            p, c = sample(expression_predicted_batch, nbins=self.n_bins)
-            predicted.append(p)
-            confidence.append(c)
-            target.append(expression_target_batch)
-            obs_idx.append(obs_idx_batch)
+    #         p, c = sample(expression_predicted_batch, nbins=self.n_bins)
+    #         predicted.append(p)
+    #         confidence.append(c)
+    #         target.append(expression_target_batch)
+    #         obs_idx.append(obs_idx_batch)
 
-        obs_idx = torch.concat(obs_idx)
-        unique_values, unique_indices = torch.unique(obs_idx, return_inverse=True)
-        sorted_indices = torch.argsort(unique_values)
-        order = unique_indices[sorted_indices]
+    #     obs_idx = torch.concat(obs_idx)
+    #     unique_values, unique_indices = torch.unique(obs_idx, return_inverse=True)
+    #     sorted_indices = torch.argsort(unique_values)
+    #     order = unique_indices[sorted_indices]
 
-        confidence = torch.concat(confidence)[order]
-        target = torch.concat(target)[order]
-        predicted = torch.concat(predicted)[order]
+    #     confidence = torch.concat(confidence)[order]
+    #     target = torch.concat(target)[order]
+    #     predicted = torch.concat(predicted)[order]
 
-        scores = score_predictions(predicted, target, nbins=self.n_bins)
-        self.log("spearman_obs_mean", scores["spearman_obs_mean"])
-        self.log("spearman_var_mean", scores["spearman_var_mean"])
+    #     scores = score_predictions(predicted, target, nbins=self.n_bins)
+    #     self.log("spearman_obs_mean", scores["spearman_obs_mean"])
+    #     self.log("spearman_var_mean", scores["spearman_var_mean"])
 
-        # cm = scores["confusion_matrix"]
-        # cm_norm = cm / cm.sum(dim=1)[:, None]
+    #     # cm = scores["confusion_matrix"]
+    #     # cm_norm = cm / cm.sum(dim=1)[:, None]
 
-        tensorboard_logger = self.logger.experiment
-        # tensorboard_logger.add_image(
-        #     "confusion_matrix",
-        #     torch.flip(cm_norm, (0,)),
-        #     self.global_step,
-        #     dataformats="HW",
-        # )
+    #     tensorboard_logger = self.logger.experiment
+    #     # tensorboard_logger.add_image(
+    #     #     "confusion_matrix",
+    #     #     torch.flip(cm_norm, (0,)),
+    #     #     self.global_step,
+    #     #     dataformats="HW",
+    #     # )
 
-        if self.global_step > 0 and self.target is None:
-            # self.adata.layers["confidence"] = confidence.detach().cpu().numpy()
-            self.adata.layers["target"] = target.detach().cpu().numpy()
-            # self.adata.layers["predicted"] = predicted.detach().cpu().numpy()
-            mp = MatrixPlot(
-                self.adata,
-                self.marker_genes_dict,
-                groupby="label",
-                gene_symbols="feature_name",
-                layer="target",
-                vmin=0,
-                vmax=self.n_bins - 1,
-                show=False,
-                dendrogram=False,
-            )
-            mp.add_dendrogram(dendrogram_key=True)
+    #     if self.global_step > 0 and self.target is None:
+    #         # self.adata.layers["confidence"] = confidence.detach().cpu().numpy()
+    #         self.adata.layers["target"] = target.detach().cpu().numpy()
+    #         # self.adata.layers["predicted"] = predicted.detach().cpu().numpy()
+    #         mp = MatrixPlot(
+    #             self.adata,
+    #             self.marker_genes_dict,
+    #             groupby="label",
+    #             gene_symbols="feature_name",
+    #             layer="target",
+    #             vmin=0,
+    #             vmax=self.n_bins - 1,
+    #             show=False,
+    #             dendrogram=False,
+    #         )
+    #         mp.add_dendrogram(dendrogram_key=True)
 
-            _color_df = mp.values_df.copy()
-            if mp.var_names_idx_order is not None:
-                _color_df = _color_df.iloc[:, mp.var_names_idx_order]
+    #         _color_df = mp.values_df.copy()
+    #         if mp.var_names_idx_order is not None:
+    #             _color_df = _color_df.iloc[:, mp.var_names_idx_order]
 
-            if mp.categories_order is not None:
-                _color_df = _color_df.loc[mp.categories_order, :]
-            self.target = torch.from_numpy(_color_df.values) / (self.n_bins - 1)
-            tensorboard_logger.add_image(
-                "cellXgene_1_target", self.target, self.global_step, dataformats="HW"
-            )
+    #         if mp.categories_order is not None:
+    #             _color_df = _color_df.loc[mp.categories_order, :]
+    #         self.target = torch.from_numpy(_color_df.values) / (self.n_bins - 1)
+    #         tensorboard_logger.add_image(
+    #             "cellXgene_1_target", self.target, self.global_step, dataformats="HW"
+    #         )
 
-        if self.global_step > 0:
-            # self.adata.layers["confidence"] = confidence.detach().cpu().numpy()
-            # self.adata.layers["target"] = target.detach().cpu().numpy()
-            self.adata.layers["predicted"] = predicted.detach().cpu().numpy()
-            mp = MatrixPlot(
-                self.adata,
-                self.marker_genes_dict,
-                groupby="label",
-                gene_symbols="feature_name",
-                layer="predicted",
-                vmin=0,
-                vmax=self.n_bins - 1,
-                show=False,
-                dendrogram=False,
-            )
-            mp.add_dendrogram(dendrogram_key=True)
+    #     if self.global_step > 0:
+    #         # self.adata.layers["confidence"] = confidence.detach().cpu().numpy()
+    #         # self.adata.layers["target"] = target.detach().cpu().numpy()
+    #         self.adata.layers["predicted"] = predicted.detach().cpu().numpy()
+    #         mp = MatrixPlot(
+    #             self.adata,
+    #             self.marker_genes_dict,
+    #             groupby="label",
+    #             gene_symbols="feature_name",
+    #             layer="predicted",
+    #             vmin=0,
+    #             vmax=self.n_bins - 1,
+    #             show=False,
+    #             dendrogram=False,
+    #         )
+    #         mp.add_dendrogram(dendrogram_key=True)
 
-            _color_df = mp.values_df.copy()
-            if mp.var_names_idx_order is not None:
-                _color_df = _color_df.iloc[:, mp.var_names_idx_order]
+    #         _color_df = mp.values_df.copy()
+    #         if mp.var_names_idx_order is not None:
+    #             _color_df = _color_df.iloc[:, mp.var_names_idx_order]
 
-            if mp.categories_order is not None:
-                _color_df = _color_df.loc[mp.categories_order, :]
+    #         if mp.categories_order is not None:
+    #             _color_df = _color_df.loc[mp.categories_order, :]
 
-            predicted = torch.from_numpy(_color_df.values) / (self.n_bins - 1)
-            tensorboard_logger.add_image(
-                "cellXgene_2_predicted", predicted, self.global_step, dataformats="HW"
-            )
+    #         predicted = torch.from_numpy(_color_df.values) / (self.n_bins - 1)
+    #         tensorboard_logger.add_image(
+    #             "cellXgene_2_predicted", predicted, self.global_step, dataformats="HW"
+    #         )
 
-            if self.target is not None:
-                blended = merge_images(self.target, predicted)
-                tensorboard_logger.add_image(
-                    "cellXgene_3_blended", blended, self.global_step, dataformats="HWC"
-                )
+    #         if self.target is not None:
+    #             blended = merge_images(self.target, predicted)
+    #             tensorboard_logger.add_image(
+    #                 "cellXgene_3_blended", blended, self.global_step, dataformats="HWC"
+    #             )
 
     def configure_optimizers(self):
         # # Create the list of parameter groups

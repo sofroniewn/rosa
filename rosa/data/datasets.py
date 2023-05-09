@@ -50,7 +50,8 @@ class RosaDataset(Dataset):
             expression_transform_config = ExpressionTransformConfig()
 
         self.transform = ExpressionTransform(expression_transform_config)
-        self.expression = torch.stack([self.transform(x) for x in expression])
+        self.expression = expression
+        # self.expression = torch.stack([self.transform(x) for x in expression])
         self.n_bins = self.transform[-1].n_bins
 
         # prepare var input, shape n_var x var_dim
@@ -159,6 +160,7 @@ class RosaDataset(Dataset):
 
         # Transform expression
         expression = self.expression[actual_idx_obs, actual_idx_var]
+        expression = self.transform(expression)
         expression_target = expression.clone().detach()
 
         # Create mask

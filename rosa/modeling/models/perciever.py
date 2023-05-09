@@ -45,8 +45,8 @@ class RosaTransformer(nn.Module):
             dim = 1024,             # dimension of sequence to be encoded
             queries_dim = 1024,          # dimension of decoder queries
             logits_dim = config.n_bins,  # dimension of final logits
-            depth = 2,                   # depth of net
-            num_latents = 256,           # number of latents, or induced set points, or centroids. different papers giving it different names
+            depth = 10,                   # depth of net
+            num_latents = 512,           # number of latents, or induced set points, or centroids. different papers giving it different names
             latent_dim = 512,            # latent dimension
             cross_heads = 1,             # number of heads for cross attention. paper said 1
             latent_heads = 8,            # number of heads for latent self attention, 8

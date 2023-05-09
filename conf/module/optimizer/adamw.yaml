@@ -1,9 +1,9 @@
-learning_rate: 0.0001
-var_learning_rate: 0.0001
+learning_rate: 0.0004
+var_learning_rate: 0.0004
 beta_1: 0.9
 beta_2: 0.98
 eps: 0.00000001 # 1e-8
 weight_decay: 0.01
 var_weight_decay: 0.01
-warmup: 1000
-max_iters: 10_000
+warmup: 4000
+max_iters: 40_000
