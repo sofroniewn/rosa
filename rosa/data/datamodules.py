@@ -89,20 +89,20 @@ class RosaDataModule(LightningDataModule):
             expression_transform_config=self.data_config.expression_transform,
         )
 
-        self.predict_dataset = RosaDataset(
-            adata,
-            mask_fraction=1.0,
-            pass_through=0.0,
-            corrupt=0.0,
-            var_input=self.data_config.var_input,
-            obs_indices=obs_indices_val, # None
-            var_indices=None,
-            n_var_sample=None,
-            n_obs_sample=None,
-            mask_indices=var_indices_val,
-            expression_layer=self.data_config.expression_layer,
-            expression_transform_config=self.data_config.expression_transform,
-        )
+        # self.predict_dataset = RosaDataset(
+        #     adata,
+        #     mask_fraction=1.0,
+        #     pass_through=0.0,
+        #     corrupt=0.0,
+        #     var_input=self.data_config.var_input,
+        #     obs_indices=obs_indices_val,  # None
+        #     var_indices=None,
+        #     n_var_sample=None,
+        #     n_obs_sample=None,
+        #     mask_indices=var_indices_val,
+        #     expression_layer=self.data_config.expression_layer,
+        #     expression_transform_config=self.data_config.expression_transform,
+        # )
 
         self.var_dim = self.train_dataset.var_dim
         self.var_input = self.train_dataset.var_input
@@ -139,7 +139,7 @@ class RosaDataModule(LightningDataModule):
         if batch_size is None:
             batch_size = self.batch_size
         return DataLoader(
-            self.predict_dataset,
+            self.val_dataset,
             batch_size=batch_size,
             shuffle=False,
             num_workers=self.num_workers,

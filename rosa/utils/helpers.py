@@ -41,7 +41,9 @@ def reconstruct_from_results(results, nbins):
         target_batch = batch["expression_target"]
         obs_idx_batch = batch["obs_idx"]
         # If results have been gathered across devices then have shape n_device x n_batch ....
-        predicted_batch = predicted_batch.view(-1, predicted_batch.shape[-2], predicted_batch.shape[-1])
+        predicted_batch = predicted_batch.view(
+            -1, predicted_batch.shape[-2], predicted_batch.shape[-1]
+        )
         target_batch = target_batch.view(-1, target_batch.shape[-1])
         obs_idx_batch = obs_idx_batch.view(-1)
 
@@ -52,12 +54,13 @@ def reconstruct_from_results(results, nbins):
         obs_idx.append(obs_idx_batch)
 
     obs_idx = torch.concat(obs_idx)
-    unique_values, unique_indices = torch.unique(obs_idx, return_inverse=True)
-    sorted_indices = torch.argsort(unique_values)
-    order = unique_indices[sorted_indices]
+    sorted, indices = torch.sort(obs_idx)
+    mask = torch.cat((torch.tensor([True]), sorted[1:] != sorted[:-1]))
+    order = indices[mask]
 
     confidence = torch.concat(confidence)[order]
     target = torch.concat(target)[order]
     predicted = torch.concat(predicted)[order]
+    obs_idx = obs_idx[order]
 
-    return target, predicted, confidence
+    return target, predicted, confidence, obs_idx

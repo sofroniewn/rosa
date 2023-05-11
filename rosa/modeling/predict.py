@@ -54,13 +54,15 @@ def predict(config: RosaConfig, chkpt: str) -> ad.AnnData:
     if not os.path.exists(output_dir):
         os.mkdir(output_dir)
 
-    rlm = RosaLightningModule(
+    rlm = RosaLightningModule.load_from_checkpoint(
+        chkpt,
         var_input=rdm.var_input,
         config=config.module,
         adata=adata_predict,
         weight=None,  # 1 / counts,
     )
     print(rlm)
+    nbins = rlm.n_bins
 
     if config.trainer.num_devices > 1:
         strategy = "ddp"
@@ -74,7 +76,6 @@ def predict(config: RosaConfig, chkpt: str) -> ad.AnnData:
         strategy=strategy,
         precision=config.trainer.precision,
         callbacks=[pred_writer],
-        limit_val_batches = 20,
     )
     trainer.predict(rlm, rdm, return_predictions=False)
 
@@ -87,30 +88,29 @@ def predict(config: RosaConfig, chkpt: str) -> ad.AnnData:
                 torch.load(os.path.join(output_dir, f"predictions_{global_rank}.pt"))[0]
             )
         results = [item for sublist in results for item in sublist]
-        nbins = config.data_module.data.expression_transform.n_bins
-        target, predicted, confidence = reconstruct_from_results(results, nbins)
+        target, predicted, confidence, obs_idx = reconstruct_from_results(results, nbins)
 
         print("Scoring predictions")
-        results = score_predictions(predicted, target, nbins=nbins)
-        for key in results.keys():
-            results[key] = results[key].detach().numpy()
+        scores = score_predictions(predicted, target, nbins=nbins)
+        for key in scores.keys():
+            scores[key] = scores[key].detach().numpy()
 
         print(
             f"""
-            mean spearman across genes {results['spearman_obs_mean']:.3f}
-            mean spearman across cells {results['spearman_var_mean']:.3f}
+            mean spearman across genes {scores['spearman_obs_mean']:.3f}
+            mean spearman across cells {scores['spearman_var_mean']:.3f}
             """
         )
 
         print("Assembling anndata object")
+        obs_indices = obs_idx.detach().numpy()
         adata = rdm.predict_dataset.adata
-        obs_indices = rdm.predict_dataset.obs_indices.detach().numpy()
         var_bool = rdm.predict_dataset.mask_bool.detach().numpy()
         adata_predict = adata[obs_indices, var_bool]
         adata_predict.layers["confidence"] = confidence.detach().numpy()
         adata_predict.layers["target"] = target.detach().numpy()
         adata_predict.layers["predicted"] = predicted.detach().numpy()
-        adata_predict.uns["results"] = results
+        adata_predict.uns["results"] = scores
         adata_predict.uns["nbins"] = nbins
 
         print("Saving predicted adata")

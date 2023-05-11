@@ -42,18 +42,18 @@ class RosaTransformer(nn.Module):
         #     self.transformer = None  # type: Optional[nn.Module]
         # else:
         self.transformer = PerceiverIO(
-            dim = 1024,             # dimension of sequence to be encoded
-            queries_dim = 1024,          # dimension of decoder queries
-            logits_dim = config.n_bins,  # dimension of final logits
-            depth = 10,                   # depth of net
-            num_latents = 512,           # number of latents, or induced set points, or centroids. different papers giving it different names
-            latent_dim = 512,            # latent dimension
-            cross_heads = 1,             # number of heads for cross attention. paper said 1
-            latent_heads = 8,            # number of heads for latent self attention, 8
-            cross_dim_head = 64,         # number of dimensions per cross attention head
-            latent_dim_head = 64,        # number of dimensions per latent self attention head
-            weight_tie_layers = False,   # whether to weight tie layers (optional, as indicated in the diagram)
-            seq_dropout_prob = 0.2       # fraction of the tokens from the input sequence to dropout (structured dropout, for saving compute and regularizing effects)
+            dim=1024,  # dimension of sequence to be encoded
+            queries_dim=1024,  # dimension of decoder queries
+            logits_dim=config.n_bins,  # dimension of final logits
+            depth=10,  # depth of net
+            num_latents=512,  # number of latents, or induced set points, or centroids. different papers giving it different names
+            latent_dim=512,  # latent dimension
+            cross_heads=1,  # number of heads for cross attention. paper said 1
+            latent_heads=8,  # number of heads for latent self attention, 8
+            cross_dim_head=64,  # number of dimensions per cross attention head
+            latent_dim_head=64,  # number of dimensions per latent self attention head
+            weight_tie_layers=False,  # whether to weight tie layers (optional, as indicated in the diagram)
+            seq_dropout_prob=0.2,  # fraction of the tokens from the input sequence to dropout (structured dropout, for saving compute and regularizing effects)
         )
 
         # decoder_cross_attn = self.transformer.decoder_cross_attn
@@ -78,7 +78,7 @@ class RosaTransformer(nn.Module):
         # false for values that should be ignored
         input = var + expression
         # input = torch.concat([var, expression], dim=-1)
-        queries = var # batch["var_input"]
+        queries = var  # batch["var_input"]
         expression = self.transformer(input, mask=~batch["mask"], queries=queries)
 
         # expression = torch.einsum(
