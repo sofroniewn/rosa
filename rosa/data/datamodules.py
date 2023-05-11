@@ -95,7 +95,7 @@ class RosaDataModule(LightningDataModule):
             pass_through=0.0,
             corrupt=0.0,
             var_input=self.data_config.var_input,
-            obs_indices=None,
+            obs_indices=obs_indices_val, # None
             var_indices=None,
             n_var_sample=None,
             n_obs_sample=None,
@@ -130,7 +130,7 @@ class RosaDataModule(LightningDataModule):
             batch_size = self.batch_size
         return DataLoader(
             self.val_dataset,
-            batch_size=self.batch_size,
+            batch_size=batch_size,
             shuffle=False,
             num_workers=self.num_workers,
         )
@@ -140,7 +140,7 @@ class RosaDataModule(LightningDataModule):
             batch_size = self.batch_size
         return DataLoader(
             self.predict_dataset,
-            batch_size=self.batch_size,
+            batch_size=batch_size,
             shuffle=False,
             num_workers=self.num_workers,
         )

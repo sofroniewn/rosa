@@ -48,7 +48,7 @@ def train(config: RosaConfig) -> None:
         check_val_every_n_epoch= None, #config.trainer.check_val_every_n_epoch,
         val_check_interval = 1000,
         limit_val_batches = 20,
-        log_every_n_steps=50,
+        log_every_n_steps = 50,
         logger=TensorBoardLogger(".", "", ""),
         resume_from_checkpoint=config.paths.chkpt,
         accelerator=config.trainer.device,

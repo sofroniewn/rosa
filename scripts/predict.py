@@ -5,7 +5,7 @@ from glob import glob
 
 
 if __name__ == "__main__":
-    BASE_DIR = "/home/ec2-user/outputs/2023-03-26/17-15-19"  # /home/ec2-user/ or /Users/nsofroniew/Documents/data/rosa/
+    BASE_DIR = "/home/ec2-user/outputs/2023-05-10/21-23-49"  # /home/ec2-user/ or /Users/nsofroniew/Documents/data/rosa/
     config_dir = BASE_DIR + "/.hydra"
 
     with hydra.initialize_config_dir(config_dir=config_dir):
@@ -14,7 +14,9 @@ if __name__ == "__main__":
             overrides=OmegaConf.load(config_dir + "/overrides.yaml"),
         )
 
-        # chkpts = BASE_DIR + "/checkpoints/epoch=*.ckpt"
-        chkpts = BASE_DIR + "/checkpoints/last.ckpt"
-        chkpt = glob(chkpts)[0]
+        # chkpt_path = BASE_DIR + "/checkpoints/epoch=*.ckpt"
+        chkpt_path = BASE_DIR + "/checkpoints/last.ckpt"
+        chkpts = glob(chkpt_path)
+        chkpts.sort()
+        chkpt = chkpts[0]
         predict(config, chkpt)

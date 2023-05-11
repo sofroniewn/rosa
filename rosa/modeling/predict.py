@@ -9,14 +9,8 @@ from pytorch_lightning.callbacks import BasePredictionWriter
 
 from ..data import RosaDataModule, create_io_paths
 from ..utils import RosaConfig, score_predictions
+from ..utils.helpers import sample, reconstruct_from_results
 from .modules import RosaLightningModule
-
-
-def sample(x: torch.Tensor, nbins: int = 1) -> Tuple[torch.Tensor, torch.Tensor]:
-    if nbins > 1:
-        confidence, prediction = nn.functional.softmax(x, dim=-1).max(dim=-1)
-        return prediction, confidence
-    return x, torch.ones_like(x)
 
 
 class CustomWriter(BasePredictionWriter):
@@ -43,36 +37,44 @@ class CustomWriter(BasePredictionWriter):
 def predict(config: RosaConfig, chkpt: str) -> ad.AnnData:
     _, output_path = create_io_paths(config.paths)
 
-    # Create Data Module
     rdm = RosaDataModule(
         output_path,
         config=config.data_module,
     )
     rdm.setup()
 
-    # Load model from checkpoint
-    rlm = RosaLightningModule.load_from_checkpoint(
-        chkpt,
-        var_input=rdm.var_input,
-        config=config.module,
-    )
-    print(rlm)
-
-    if config.num_devices > 1:
-        strategy = "ddp"
-    else:
-        strategy = None
+    adata = rdm.val_dataset.adata
+    obs_indices = rdm.val_dataset.obs_indices.detach().numpy()
+    var_bool = rdm.val_dataset.mask_bool.detach().numpy()
+    adata_predict = adata[obs_indices, var_bool]
+    # counts = rdm.train_dataset.counts.mean(dim=1)
+    # counts = torch.bincount(rdm.train_dataset.expression.ravel(), minlength=rdm.train_dataset.n_bins)
 
     output_dir = str(rdm.adata_path.with_name(rdm.adata_path.stem + "__processed"))
     if not os.path.exists(output_dir):
         os.mkdir(output_dir)
+
+    rlm = RosaLightningModule(
+        var_input=rdm.var_input,
+        config=config.module,
+        adata=adata_predict,
+        weight=None,  # 1 / counts,
+    )
+    print(rlm)
+
+    if config.trainer.num_devices > 1:
+        strategy = "ddp"
+    else:
+        strategy = None
+
     pred_writer = CustomWriter(output_dir=output_dir, write_interval="epoch")
     trainer = Trainer(
-        accelerator=config.device,
-        devices=config.num_devices,
+        accelerator=config.trainer.device,
+        devices=config.trainer.num_devices,
         strategy=strategy,
-        precision=config.precision,
+        precision=config.trainer.precision,
         callbacks=[pred_writer],
+        limit_val_batches = 20,
     )
     trainer.predict(rlm, rdm, return_predictions=False)
 
@@ -80,33 +82,25 @@ def predict(config: RosaConfig, chkpt: str) -> ad.AnnData:
     if rlm.global_rank == 0:
         print("Making predicted adata object")
         results = []
-        for global_rank in range(config.num_devices):
+        for global_rank in range(config.trainer.num_devices):
             results.append(
-                torch.load(os.path.join(output_dir, f"predictions_{global_rank}.pt"))
+                torch.load(os.path.join(output_dir, f"predictions_{global_rank}.pt"))[0]
             )
-
-        predicted = []
-        confidence = []
-        target = []
-        obs_idx = []
+        results = [item for sublist in results for item in sublist]
         nbins = config.data_module.data.expression_transform.n_bins
-        for device in results:
-            for batch in device[0]:
-                p, c = sample(batch["expression_predicted"], nbins=nbins)
-                predicted.append(p)
-                confidence.append(c)
-                target.append(batch["expression_target"])
-                obs_idx.append(batch["obs_idx"])
-
-        obs_idx = torch.concat(obs_idx)
-        order = torch.argsort(obs_idx)
-
-        confidence = torch.concat(confidence)[order]
-        target = torch.concat(target)[order]
-        predicted = torch.concat(predicted)[order]
+        target, predicted, confidence = reconstruct_from_results(results, nbins)
 
         print("Scoring predictions")
         results = score_predictions(predicted, target, nbins=nbins)
+        for key in results.keys():
+            results[key] = results[key].detach().numpy()
+
+        print(
+            f"""
+            mean spearman across genes {results['spearman_obs_mean']:.3f}
+            mean spearman across cells {results['spearman_var_mean']:.3f}
+            """
+        )
 
         print("Assembling anndata object")
         adata = rdm.predict_dataset.adata

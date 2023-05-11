@@ -10,7 +10,7 @@ from torchmetrics.functional import spearman_corrcoef
 from scanpy.plotting._matrixplot import MatrixPlot
 
 from ..utils import merge_images, score_predictions
-from ..utils.helpers import sample, CosineWarmupScheduler
+from ..utils.helpers import sample, CosineWarmupScheduler, reconstruct_from_results
 from ..utils.config import ModuleConfig
 from .models import RosaTransformer
 
@@ -87,10 +87,6 @@ class RosaLightningModule(LightningModule):
             "train_loss", loss, on_step=True, on_epoch=False, prog_bar=True, logger=True
         )
 
-        self.log(
-            "lr_njs", self.lr, on_step=True, on_epoch=False, prog_bar=True, logger=True
-        )
-
         # n = 0
         # reg_loss = 0
         # lambda_reg = 100
@@ -112,18 +108,6 @@ class RosaLightningModule(LightningModule):
         # )
 
         return loss
-
-    # def validation_step(self, batch, _):
-    #     expression = batch["expression_target"]
-    #     batch["var_input"] = self.var_input[batch["var_indices"]]
-    #     expression_predicted = self(batch)
-    #     expression_predicted = expression_predicted[batch["mask"]]
-    #     expression = expression[batch["mask"]]
-    #     loss = self.criterion(expression_predicted, expression)
-    #     self.log(
-    #         "val_loss", loss, on_epoch=True, prog_bar=True, logger=True, sync_dist=True
-    #     )
-    #     return loss
 
     def validation_step(self, batch, batch_idx, dataloader_idx=0):
         expression = batch["expression_target"]
@@ -195,56 +179,28 @@ class RosaLightningModule(LightningModule):
         results["obs_idx"] = batch["obs_idx"]
         return results
 
-    # def validation_epoch_end(self, results):
-    #     results = self.all_gather(results)
+    def validation_epoch_end(self, results):
+        results = self.all_gather(results)
  
-    #     if self.global_rank != 0:
-    #         return
+        if self.global_rank != 0:
+            return
         
-    #     predicted = []
-    #     confidence = []
-    #     target = []
-    #     obs_idx = []
-    #     for batch in results:
-    #         expression_predicted_batch = batch["expression_predicted"]
-    #         expression_target_batch = batch["expression_target"]
-    #         obs_idx_batch = batch["obs_idx"]
-    #         if expression_predicted_batch.ndim == 4:
-    #             expression_predicted_batch = expression_predicted_batch.view(-1, expression_predicted_batch.shape[2], expression_predicted_batch.shape[3])
-    #         if expression_target_batch.ndim == 3:
-    #             expression_target_batch = expression_target_batch.view(-1, expression_target_batch.shape[2])
-    #         if obs_idx_batch.ndim == 2:
-    #             obs_idx_batch = obs_idx_batch.view(-1)
+        target, predicted, confidence = reconstruct_from_results(results, self.n_bins)
 
-    #         p, c = sample(expression_predicted_batch, nbins=self.n_bins)
-    #         predicted.append(p)
-    #         confidence.append(c)
-    #         target.append(expression_target_batch)
-    #         obs_idx.append(obs_idx_batch)
+        scores = score_predictions(predicted, target, nbins=self.n_bins)
+        self.log("spearman_obs_mean", scores["spearman_obs_mean"])
+        self.log("spearman_var_mean", scores["spearman_var_mean"])
 
-    #     obs_idx = torch.concat(obs_idx)
-    #     unique_values, unique_indices = torch.unique(obs_idx, return_inverse=True)
-    #     sorted_indices = torch.argsort(unique_values)
-    #     order = unique_indices[sorted_indices]
+        cm = scores["confusion_matrix"]
+        cm_norm = cm / cm.sum(dim=1)[:, None]
 
-    #     confidence = torch.concat(confidence)[order]
-    #     target = torch.concat(target)[order]
-    #     predicted = torch.concat(predicted)[order]
-
-    #     scores = score_predictions(predicted, target, nbins=self.n_bins)
-    #     self.log("spearman_obs_mean", scores["spearman_obs_mean"])
-    #     self.log("spearman_var_mean", scores["spearman_var_mean"])
-
-    #     # cm = scores["confusion_matrix"]
-    #     # cm_norm = cm / cm.sum(dim=1)[:, None]
-
-    #     tensorboard_logger = self.logger.experiment
-    #     # tensorboard_logger.add_image(
-    #     #     "confusion_matrix",
-    #     #     torch.flip(cm_norm, (0,)),
-    #     #     self.global_step,
-    #     #     dataformats="HW",
-    #     # )
+        tensorboard_logger = self.logger.experiment
+        tensorboard_logger.add_image(
+            "confusion_matrix",
+            torch.flip(cm_norm, (0,)),
+            self.global_step,
+            dataformats="HW",
+        )
 
     #     if self.global_step > 0 and self.target is None:
     #         # self.adata.layers["confidence"] = confidence.detach().cpu().numpy()
@@ -308,6 +264,25 @@ class RosaLightningModule(LightningModule):
     #             tensorboard_logger.add_image(
     #                 "cellXgene_3_blended", blended, self.global_step, dataformats="HWC"
     #             )
+
+    def predict_step(self, batch, batch_idx, dataloader_idx=0):
+        expression = batch["expression_target"]
+        # batch["var_input"] = batch["var_indices"]
+        batch["var_input"] = self.var_input[0, batch["var_indices"]]
+        expression_predicted = self(batch)
+        batch_size = batch["mask"].shape[0]
+        expression_predicted = expression_predicted[batch["mask"]]
+        expression = expression[batch["mask"]]
+
+        results = {}
+        results["expression_predicted"] = expression_predicted.reshape(
+            batch_size, -1, self.n_bins
+        )
+        results["expression_target"] = expression.reshape(batch_size, -1)
+        results["batch_idx"] = batch_idx
+        results["dataloader_idx"] = dataloader_idx
+        results["obs_idx"] = batch["obs_idx"]
+        return results
 
     def configure_optimizers(self):
         # # Create the list of parameter groups
