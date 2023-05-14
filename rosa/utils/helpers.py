@@ -55,7 +55,9 @@ def reconstruct_from_results(results, nbins):
 
     obs_idx = torch.concat(obs_idx)
     sorted, indices = torch.sort(obs_idx)
-    mask = torch.cat((torch.tensor([True]), sorted[1:] != sorted[:-1]))
+    mask = torch.cat(
+        (torch.tensor([True]).to(sorted.device), sorted[1:] != sorted[:-1])
+    )
     order = indices[mask]
 
     confidence = torch.concat(confidence)[order]

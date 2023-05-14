@@ -130,6 +130,7 @@ class TransformerConfig:
     depth: int
     heads: int
     dim_head: int
+    causal: bool
 
 
 class LossFunctions(Enum):
@@ -179,7 +180,9 @@ class TrainerConfig:
     precision: str
     num_devices: int
     max_epochs: int
-    check_val_every_n_epoch: int
+    val_check_interval: int
+    limit_val_batches: int
+    log_every_n_steps: int
     gradient_clip_val: Optional[float]
 
 

@@ -5,7 +5,7 @@ from glob import glob
 
 
 if __name__ == "__main__":
-    BASE_DIR = "/home/ec2-user/outputs/2023-05-11/03-42-45"  # /home/ec2-user/ or /Users/nsofroniew/Documents/data/rosa/
+    BASE_DIR = "/home/ec2-user/outputs/2023-05-13/06-08-04"  # /home/ec2-user/ or /Users/nsofroniew/Documents/data/rosa/
     config_dir = BASE_DIR + "/.hydra"
 
     with hydra.initialize_config_dir(config_dir=config_dir):

@@ -2,6 +2,7 @@ import os
 from typing import Tuple
 
 import anndata as ad
+import scanpy as sc
 import torch
 import torch.nn as nn
 from pytorch_lightning import Trainer
@@ -76,6 +77,7 @@ def predict(config: RosaConfig, chkpt: str) -> ad.AnnData:
         strategy=strategy,
         precision=config.trainer.precision,
         callbacks=[pred_writer],
+        deterministic=False,
     )
     trainer.predict(rlm, rdm, return_predictions=False)
 
@@ -88,7 +90,9 @@ def predict(config: RosaConfig, chkpt: str) -> ad.AnnData:
                 torch.load(os.path.join(output_dir, f"predictions_{global_rank}.pt"))[0]
             )
         results = [item for sublist in results for item in sublist]
-        target, predicted, confidence, obs_idx = reconstruct_from_results(results, nbins)
+        target, predicted, confidence, obs_idx = reconstruct_from_results(
+            results, nbins
+        )
 
         print("Scoring predictions")
         scores = score_predictions(predicted, target, nbins=nbins)
@@ -112,6 +116,9 @@ def predict(config: RosaConfig, chkpt: str) -> ad.AnnData:
         adata_predict.layers["predicted"] = predicted.detach().numpy()
         adata_predict.uns["results"] = scores
         adata_predict.uns["nbins"] = nbins
+
+        print("Calculate dendrogram")
+        sc.tl.dendrogram(adata_predict, groupby="label")
 
         print("Saving predicted adata")
         output_path = str(

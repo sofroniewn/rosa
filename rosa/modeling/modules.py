@@ -49,16 +49,16 @@ class RosaLightningModule(LightningModule):
         # batch["var_input"] = batch["var_indices"]
         batch["var_input"] = self.var_input[0, batch["var_indices"]]
         expression_predicted = self(batch)
-        
-        batch_size = batch["mask"].shape[0]
-        expression_predicted = expression_predicted[batch["mask"]]
-        expression = expression[batch["mask"]]
+
+        # batch_size = batch["mask"].shape[0]
+        # expression_predicted = expression_predicted[batch["mask"]]
+        # expression = expression[batch["mask"]]
 
         results = {}
-        results["expression_predicted"] = expression_predicted.view(
-            batch_size, -1, self.n_bins
-        )
-        results["expression_target"] = expression.view(batch_size, -1)
+        results[
+            "expression_predicted"
+        ] = expression_predicted  # .view(batch_size, -1, self.n_bins)
+        results["expression_target"] = expression  # .view(batch_size, -1)
         results["batch_idx"] = batch_idx
         results["dataloader_idx"] = dataloader_idx
         results["obs_idx"] = batch["obs_idx"]
@@ -67,7 +67,8 @@ class RosaLightningModule(LightningModule):
     def training_step(self, batch, batch_idx, dataloader_idx=0):
         results = self._basic_step(batch, batch_idx, dataloader_idx=dataloader_idx)
         loss = self.criterion(
-            results["expression_predicted"].view(-1, self.n_bins), results["expression_target"].view(-1)
+            results["expression_predicted"].view(-1, self.n_bins),
+            results["expression_target"].view(-1),
         )
 
         # predicted, _ = sample(expression_predicted, nbins=self.n_bins)
@@ -96,7 +97,8 @@ class RosaLightningModule(LightningModule):
     def validation_step(self, batch, batch_idx, dataloader_idx=0):
         results = self._basic_step(batch, batch_idx, dataloader_idx=dataloader_idx)
         loss = self.criterion(
-            results["expression_predicted"].view(-1, self.n_bins), results["expression_target"].view(-1)
+            results["expression_predicted"].view(-1, self.n_bins),
+            results["expression_target"].view(-1),
         )
         self.log(
             "val_loss",
@@ -200,32 +202,6 @@ class RosaLightningModule(LightningModule):
         return results
 
     def configure_optimizers(self):
-        # # Create the list of parameter groups
-        # params = []
-
-        # # Initialize a set to collect the special parameters
-        # special_params = set()
-
-        # # Add the special parameters to separate parameter groups and collect them in the special_params set
-        # for layer in self.model.transformer.core.layers:
-        #     for head in layer.attention.heads:
-        #         for p in [head.k, head.q]:
-        #             special_params.update(p.parameters())
-        #             params.append(
-        #                 {
-        #                     "params": list(p.parameters()),
-        #                     "lr": self.optim_config.learning_rate / 1e3,
-        #                     "weight_decay": self.optim_config.weight_decay * 1e3,
-        #                 }
-        #             )
-
-        # # Find the non-special parameters by subtracting special_params from all model parameters
-        # all_params = set(self.model.parameters())
-        # non_special_params = all_params - special_params
-
-        # # Add the non-special parameters to the first parameter group
-        # params.insert(0, {"params": list(non_special_params)})
-
         params = self.model.parameters()
 
         optimizer = optim.AdamW(
