@@ -4,5 +4,5 @@ gradient_clip_val: null
 precision: 32 # 16
 max_epochs: 10_000
 val_check_interval: 1000 # 1000
-limit_val_batches: null # 20
-log_every_n_steps: 10 # 50
+limit_val_batches: 20 # 20
+log_every_n_steps: 16 # 50

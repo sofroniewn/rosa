@@ -44,13 +44,6 @@ def predict(config: RosaConfig, chkpt: str) -> ad.AnnData:
     )
     rdm.setup()
 
-    adata = rdm.val_dataset.adata
-    obs_indices = rdm.val_dataset.obs_indices.detach().numpy()
-    var_bool = rdm.val_dataset.mask_bool.detach().numpy()
-    adata_predict = adata[obs_indices, var_bool]
-    # counts = rdm.train_dataset.counts.mean(dim=1)
-    # counts = torch.bincount(rdm.train_dataset.expression.ravel(), minlength=rdm.train_dataset.n_bins)
-
     output_dir = str(rdm.adata_path.with_name(rdm.adata_path.stem + "__processed"))
     if not os.path.exists(output_dir):
         os.mkdir(output_dir)
@@ -59,14 +52,15 @@ def predict(config: RosaConfig, chkpt: str) -> ad.AnnData:
         chkpt,
         var_input=rdm.var_input,
         config=config.module,
-        adata=adata_predict,
-        weight=None,  # 1 / counts,
+        adata=rdm.adata,
+        weight=1 / rdm.counts,
     )
     print(rlm)
+    print('Sample bin counts', rdm.counts)
     nbins = rlm.n_bins
 
     if config.trainer.num_devices > 1:
-        strategy = "ddp"
+        strategy = "ddp_find_unused_parameters_false"
     else:
         strategy = None
 
@@ -78,6 +72,7 @@ def predict(config: RosaConfig, chkpt: str) -> ad.AnnData:
         precision=config.trainer.precision,
         callbacks=[pred_writer],
         deterministic=False,
+        limit_predict_batches=1000,
     )
     trainer.predict(rlm, rdm, return_predictions=False)
 
@@ -94,6 +89,16 @@ def predict(config: RosaConfig, chkpt: str) -> ad.AnnData:
             results, nbins
         )
 
+        print("Assembling anndata object")
+        obs_indices = obs_idx.detach().numpy()
+        var_bool = rdm.predict_dataset.mask_bool.detach().numpy()
+        adata_predict = rdm.adata[obs_indices]
+        adata_predict.layers["confidence"] = confidence.detach().numpy()
+        adata_predict.layers["target"] = target.detach().numpy()
+        adata_predict.layers["predicted"] = predicted.detach().numpy()
+        adata_predict = adata_predict[:, var_bool]
+        adata_predict.uns["nbins"] = nbins
+
         print("Scoring predictions")
         scores = score_predictions(predicted, target, nbins=nbins)
         for key in scores.keys():
@@ -106,16 +111,7 @@ def predict(config: RosaConfig, chkpt: str) -> ad.AnnData:
             """
         )
 
-        print("Assembling anndata object")
-        obs_indices = obs_idx.detach().numpy()
-        adata = rdm.predict_dataset.adata
-        var_bool = rdm.predict_dataset.mask_bool.detach().numpy()
-        adata_predict = adata[obs_indices, var_bool]
-        adata_predict.layers["confidence"] = confidence.detach().numpy()
-        adata_predict.layers["target"] = target.detach().numpy()
-        adata_predict.layers["predicted"] = predicted.detach().numpy()
         adata_predict.uns["results"] = scores
-        adata_predict.uns["nbins"] = nbins
 
         print("Calculate dendrogram")
         sc.tl.dendrogram(adata_predict, groupby="label")

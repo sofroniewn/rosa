@@ -17,23 +17,17 @@ def train(config: RosaConfig) -> None:
     )
     rdm.setup()
 
-    adata = rdm.val_dataset.adata
-    obs_indices = rdm.val_dataset.obs_indices.detach().numpy()
-    var_bool = rdm.val_dataset.mask_bool.detach().numpy()
-    adata_predict = adata[obs_indices, var_bool]
-    # counts = rdm.train_dataset.counts.mean(dim=1)
-    # counts = torch.bincount(rdm.train_dataset.expression.ravel(), minlength=rdm.train_dataset.n_bins)
-
     rlm = RosaLightningModule(
         var_input=rdm.var_input,
         config=config.module,
-        adata=adata_predict,
-        weight=None,  # 1 / counts,
+        adata=rdm.adata,
+        weight=1 / rdm.counts,
     )
     print(rlm)
     print(
-        f"Train samples {len(rdm.train_dataset)}, Val samples {len(rdm.val_dataset)}, {adata.shape[1]} genes"
+        f"Train samples {len(rdm.train_dataset)}, Val samples {len(rdm.val_dataset)}, {rdm.adata.shape[1]} genes"
     )
+    print('Sample bin counts', rdm.counts)
 
     checkpoint_callback = ModelCheckpoint(
         save_top_k=2, monitor="val_loss", mode="min", save_last=True
@@ -41,7 +35,7 @@ def train(config: RosaConfig) -> None:
     lr_monitor_callback = LearningRateMonitor(logging_interval="step")
 
     if config.trainer.num_devices > 1:
-        strategy = "ddp"
+        strategy = "ddp_find_unused_parameters_false"
     else:
         strategy = None
 

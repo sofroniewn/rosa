@@ -26,6 +26,7 @@ class RosaDataset(Dataset):
         pass_through: float = 0,
         corrupt: float = 0,
         mask_fraction: float = 0,
+        shuffle: bool = True,
         n_var_sample: Optional[int] = None,
         n_obs_sample: Optional[int] = None,
         obs_indices: Optional[Tensor] = None,
@@ -39,6 +40,7 @@ class RosaDataset(Dataset):
         self.pass_through = pass_through
         self.corrupt = corrupt
         self.mask_fraction = mask_fraction
+        self.shuffle = shuffle
 
         # prepare expression, shape n_obs x n_var
         if expression_layer is None:
@@ -113,23 +115,28 @@ class RosaDataset(Dataset):
         self.n_obs_sample = n_obs_sample
         self.n_var = len(self.var_indices)
 
-        if mask_style is None or mask_style == "random":
-            self.counts = None
-        elif mask_style == "uniform":
-            counts = torch.bincount(self.expression.ravel(), minlength=self.n_bins)
-            self.counts = counts / counts.sum()  # counts n_bins
-        elif mask_style == "uniform_var":
-            counts = torch.stack(
-                [torch.bincount(x, minlength=self.n_bins) for x in self.expression.T]
-            ).T
-            self.counts = counts / self.expression.shape[0]  # counts var x n_bins
-        elif mask_style == "uniform_obs":
-            counts = torch.stack(
-                [torch.bincount(x, minlength=self.n_bins) for x in self.expression]
-            )
-            self.counts = counts / self.expression.shape[1]  # counts obs x n_bins
-        else:
-            raise ValueError(f"Unrecognized mask style {mask_style}")
+        sample_rows = torch.randperm(self.expression.shape[0])
+        sample_rows = sample_rows[:min(len(sample_rows), 1000)]
+        expression_sample = self.transform(self.expression[sample_rows])
+        self.counts = torch.bincount(expression_sample.ravel(), minlength=self.n_bins)
+        
+        # if mask_style is None or mask_style == "random":
+        #     self.counts = None
+        # elif mask_style == "uniform":
+        #     counts = torch.bincount(self.expression.ravel(), minlength=self.n_bins)
+        #     self.counts = counts / counts.sum()  # counts n_bins
+        # elif mask_style == "uniform_var":
+        #     counts = torch.stack(
+        #         [torch.bincount(x, minlength=self.n_bins) for x in self.expression.T]
+        #     ).T
+        #     self.counts = counts / self.expression.shape[0]  # counts var x n_bins
+        # elif mask_style == "uniform_obs":
+        #     counts = torch.stack(
+        #         [torch.bincount(x, minlength=self.n_bins) for x in self.expression]
+        #     )
+        #     self.counts = counts / self.expression.shape[1]  # counts obs x n_bins
+        # else:
+        #     raise ValueError(f"Unrecognized mask style {mask_style}")
 
         # Mask indices are the var indices that are allowed to be masked
         if mask_indices is None:
@@ -178,13 +185,16 @@ class RosaDataset(Dataset):
         #     expression, mask_indices, self.n_bins, self.corrupt, self.pass_through
         # )
 
-        shuffle = torch.randperm(len(expression_target))
+        if self.shuffle:
+            shuffle = torch.randperm(len(expression_target))
+            expression_target = expression_target[shuffle]
+            actual_idx_var = actual_idx_var[shuffle]
 
         item = dict()
         # item["expression_input"] = expression
-        item["expression_target"] = expression_target[shuffle]
+        item["expression_target"] = expression_target
         # item["mask"] = mask
-        item["var_indices"] = actual_idx_var[shuffle]
+        item["var_indices"] = actual_idx_var
         item["obs_idx"] = actual_idx_obs
         return item
 

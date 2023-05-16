@@ -25,16 +25,17 @@ class RosaDataModule(LightningDataModule):
         pass
 
     def setup(self, stage=None):
-        adata = read_h5ad(self.adata_path)
+        self.adata = read_h5ad(self.adata_path)
 
-        obs_indices_train = torch.Tensor(np.where(adata.obs["train"])[0])
-        var_indices_train = torch.Tensor(np.where(adata.var["train"])[0])
-        obs_indices_val = torch.Tensor(np.where(np.logical_not(adata.obs["train"]))[0])
-        var_indices_val = torch.Tensor(np.where(np.logical_not(adata.var["train"]))[0])
+        obs_indices_train = torch.Tensor(np.where(self.adata.obs["train"])[0])
+        var_indices_train = torch.Tensor(np.where(self.adata.var["train"])[0])
+        obs_indices_val = torch.Tensor(np.where(np.logical_not(self.adata.obs["train"]))[0])
+        var_indices_val = torch.Tensor(np.where(np.logical_not(self.adata.var["train"]))[0])
         split = len(obs_indices_val) / (len(obs_indices_val) + len(obs_indices_train))
 
         self.train_dataset = RosaDataset(
-            adata,
+            self.adata,
+            shuffle=False,
             mask_fraction=self.data_config.mask,
             pass_through=self.data_config.pass_through,
             corrupt=self.data_config.corrupt,
@@ -75,7 +76,8 @@ class RosaDataModule(LightningDataModule):
         # )
 
         self.val_dataset = RosaDataset(
-            adata,
+            self.adata,
+            shuffle=False,
             mask_fraction=1.0,
             pass_through=0.0,
             corrupt=0.0,
@@ -109,12 +111,16 @@ class RosaDataModule(LightningDataModule):
         self.var_dim = self.train_dataset.var_dim
         self.var_input = self.train_dataset.var_input
 
+        # Set counts from train dataset
+        self.counts = self.train_dataset.counts     
+
     def train_dataloader(self):
         return DataLoader(
             self.train_dataset,
             batch_size=self.batch_size,
             shuffle=True,
             num_workers=self.num_workers,
+            pin_memory=True,
         )
 
     def val_dataloader(self, batch_size=None):
@@ -125,6 +131,7 @@ class RosaDataModule(LightningDataModule):
             batch_size=batch_size,
             shuffle=False,
             num_workers=self.num_workers,
+            pin_memory=True,
         )
 
     def test_dataloader(self, batch_size=None):
@@ -135,6 +142,7 @@ class RosaDataModule(LightningDataModule):
             batch_size=batch_size,
             shuffle=False,
             num_workers=self.num_workers,
+            pin_memory=True,
         )
 
     def predict_dataloader(self, batch_size=None):
@@ -145,6 +153,7 @@ class RosaDataModule(LightningDataModule):
             batch_size=batch_size,
             shuffle=False,
             num_workers=self.num_workers,
+            pin_memory=True,
         )
 
     def teardown(self, stage=None):

@@ -34,6 +34,9 @@ class RosaLightningModule(LightningModule):
         self.criterion = nn.CrossEntropyLoss(weight=weight)
         self.n_bins = config.model.n_bins
 
+        self.keep_obs = None
+        self.keep_var = None
+
         # self.adata = adata
         # self.target = None
         # self.marker_genes_dict = self.adata.obs.set_index("label").to_dict()[
@@ -66,28 +69,33 @@ class RosaLightningModule(LightningModule):
 
     def training_step(self, batch, batch_idx, dataloader_idx=0):
         results = self._basic_step(batch, batch_idx, dataloader_idx=dataloader_idx)
+        expression_logits = results["expression_predicted"]
+        target = results["expression_target"]
         loss = self.criterion(
-            results["expression_predicted"].view(-1, self.n_bins),
-            results["expression_target"].view(-1),
+            expression_logits.view(-1, self.n_bins),
+            target.view(-1),
         )
 
-        # predicted, _ = sample(expression_predicted, nbins=self.n_bins)
-        # spearman_obs_mean = 1 - spearman_corrcoef(predicted.T.float(), expression.T.float()).mean()
-        # spearman_var_mean = 1 - spearman_corrcoef(predicted.float(), expression.float()).mean()
-        # spearman_var_mean = 0.0
+        # predicted, _ = sample(expression_logits, nbins=self.n_bins)
+        # if predicted.shape[0] == 1:
+        #     spearman_obs_loss = 1 - spearman_corrcoef(predicted[0].float(), target[0].float())
+        #     # spearman_var_loss = 0
+        # else:
+        #     spearman_obs_loss = 1 - spearman_corrcoef(predicted.T.float(), target.T.float()).mean()
+        #     # spearman_var_loss = 1 - spearman_corrcoef(predicted.float(), target.float()).mean()
         # beta_obs_loss = 1.0
-        # beta_var_loss = 1.0
+        # # beta_var_loss = 1.0
 
         # self.log(
-        #     "train_ce_loss", ce_loss, on_step=False, on_epoch=True, prog_bar=True, logger=True
+        #     "train_ce_loss", ce_loss, on_step=True, on_epoch=False, prog_bar=True, logger=True
         # )
         # self.log(
-        #     "train_obs_loss", spearman_obs_mean, on_step=False, on_epoch=True, prog_bar=True, logger=True
+        #     "train_obs_loss", spearman_obs_loss, on_step=True, on_epoch=False, prog_bar=True, logger=True
         # )
-        # self.log(
-        #     "train_var_loss", spearman_var_mean, on_step=False, on_epoch=True, prog_bar=True, logger=True
-        # )
-        # loss = ce_loss + beta_obs_loss * spearman_obs_mean + beta_var_loss * spearman_var_mean
+        # # self.log(
+        # #     "train_var_loss", spearman_var_loss, on_step=False, on_epoch=True, prog_bar=True, logger=True
+        # # )
+        # loss = ce_loss + beta_obs_loss * spearman_obs_loss # + beta_var_loss * spearman_var_loss
 
         self.log(
             "train_loss", loss, on_step=True, on_epoch=False, prog_bar=True, logger=True
@@ -133,6 +141,19 @@ class RosaLightningModule(LightningModule):
             self.global_step,
             dataformats="HW",
         )
+
+        if self.global_step > 0:
+            if self.keep_obs is None:
+                size = min(64, target.shape[0], target.shape[1])
+                self.keep_obs = torch.randperm(target.shape[0])[:size]
+                self.keep_var = torch.randperm(target.shape[1])[:size]
+            target = target[self.keep_obs][:, self.keep_var]
+            predicted = predicted[self.keep_obs][:, self.keep_var]
+
+            blended = merge_images(target, predicted)
+            tensorboard_logger.add_image(
+                "cellXgene_blended", blended, self.global_step, dataformats="HWC"
+            )
 
     #     if self.global_step > 0 and self.target is None:
     #         # self.adata.layers["confidence"] = confidence.detach().cpu().numpy()
