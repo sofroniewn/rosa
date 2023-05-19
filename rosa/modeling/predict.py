@@ -92,11 +92,11 @@ def predict(config: RosaConfig, chkpt: str) -> ad.AnnData:
         print("Assembling anndata object")
         obs_indices = obs_idx.detach().numpy()
         var_bool = rdm.predict_dataset.mask_bool.detach().numpy()
-        adata_predict = rdm.adata[obs_indices]
+        adata_predict = rdm.adata[obs_indices, var_bool]
         adata_predict.layers["confidence"] = confidence.detach().numpy()
         adata_predict.layers["target"] = target.detach().numpy()
         adata_predict.layers["predicted"] = predicted.detach().numpy()
-        adata_predict = adata_predict[:, var_bool]
+        # adata_predict = adata_predict[:, var_bool]
         adata_predict.uns["nbins"] = nbins
 
         print("Scoring predictions")

@@ -170,15 +170,15 @@ class RosaDataset(Dataset):
         expression = self.transform(expression)
         expression_target = expression.clone().detach()
 
-        # # Create mask
-        # mask_indices = create_mask(
-        #     expression,
-        #     self.mask_bool[actual_idx_var],
-        #     self.mask_fraction,
-        #     self.counts,  # [:, actual_idx_var]
-        # )
-        # mask = torch.zeros(expression.shape, dtype=torch.bool)
-        # mask[mask_indices] = True
+        # Create mask
+        mask_indices = create_mask(
+            expression,
+            self.mask_bool[actual_idx_var],
+            self.mask_fraction,
+            None,  # [:, actual_idx_var]
+        )
+        mask = torch.zeros(expression.shape, dtype=torch.bool)
+        mask[mask_indices] = True
 
         # # Pass, corrupt, or mask expression values
         # expression = apply_mask(
@@ -192,9 +192,10 @@ class RosaDataset(Dataset):
 
         item = dict()
         # item["expression_input"] = expression
-        item["expression_target"] = expression_target
-        # item["mask"] = mask
-        item["var_indices"] = actual_idx_var
+        item["expression_encoder"] = expression_target[~mask]
+        item["var_indices_encoder"] = actual_idx_var[~mask]
+        item["expression_decoder"] = expression_target[mask]
+        item["var_indices_decoder"] = actual_idx_var[mask]
         item["obs_idx"] = actual_idx_obs
         return item
 

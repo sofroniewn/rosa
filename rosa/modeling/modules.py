@@ -48,20 +48,13 @@ class RosaLightningModule(LightningModule):
         return self.model.forward(batch)
 
     def _basic_step(self, batch, batch_idx, dataloader_idx=0):
-        expression = batch["expression_target"]
-        # batch["var_input"] = batch["var_indices"]
-        batch["var_input"] = self.var_input[0, batch["var_indices"]]
+        batch["var_input_encoder"] = self.var_input[0, batch["var_indices_encoder"]]
+        batch["var_input_decoder"] = self.var_input[0, batch["var_indices_decoder"]]
         expression_predicted = self(batch)
 
-        # batch_size = batch["mask"].shape[0]
-        # expression_predicted = expression_predicted[batch["mask"]]
-        # expression = expression[batch["mask"]]
-
         results = {}
-        results[
-            "expression_predicted"
-        ] = expression_predicted  # .view(batch_size, -1, self.n_bins)
-        results["expression_target"] = expression  # .view(batch_size, -1)
+        results["expression_predicted"] = expression_predicted
+        results["expression_target"] = batch["expression_decoder"]
         results["batch_idx"] = batch_idx
         results["dataloader_idx"] = dataloader_idx
         results["obs_idx"] = batch["obs_idx"]
@@ -151,6 +144,7 @@ class RosaLightningModule(LightningModule):
             predicted = predicted[self.keep_obs][:, self.keep_var]
 
             blended = merge_images(target, predicted)
+            blended = blended / self.n_bins
             tensorboard_logger.add_image(
                 "cellXgene_blended", blended, self.global_step, dataformats="HWC"
             )

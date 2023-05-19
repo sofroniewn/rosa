@@ -4,7 +4,7 @@ transformer:
   dim: ${module.model.dim}
   heads: 10 # 4 5 20
   dim_head: 32 # 32 64 16
-  depth: 2 # 4 6 6
+  depth: 4 # 4 6 6
   dropout: 0.2
   causal: True
 expression_embed:

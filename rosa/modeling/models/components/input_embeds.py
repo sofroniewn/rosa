@@ -1,6 +1,7 @@
 from collections import OrderedDict
 from typing import Optional, Tuple, Union
 
+import math
 import torch
 import torch.nn as nn
 
@@ -64,3 +65,22 @@ class BinnedEmbed(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.model(x)
+
+
+def sinusoidal_embedding(values, dim, nbins):
+    half = dim // 2
+    freqs = torch.exp(
+        -math.log(nbins) * torch.arange(start=0, end=half, dtype=torch.float32) / half
+    ).to(device=values.device)
+    args = values[..., None].float() * freqs[None]
+    embedding = torch.cat([torch.cos(args), torch.sin(args)], dim=-1)
+    if dim % 2:
+        embedding = torch.cat([embedding, torch.zeros_like(embedding[..., :1])], dim=-1)
+    return embedding
+
+
+def numerical_embedding(values, dim, nbins):
+    indices = torch.arange(start=0, end=dim, dtype=torch.float32).to(device=values.device)
+    freqs = (-1) ** indices / (indices + 1)
+    embedding = values[..., None].float() * freqs[None]
+    return embedding
