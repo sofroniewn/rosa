@@ -5,7 +5,7 @@ data:
   expression_transform:
     total_counts: null
     log1p: null
-    n_bins: 12
+    n_bins: 8
     zero_bin: False
   n_var_sample: null
   n_obs_sample: null
@@ -13,5 +13,5 @@ data:
   pass_through: 0.1
   corrupt: 0.1
 batch_size: 2 # 1 or 4 or 2 ## Batch size should be ~2M tokens e.g. 100-200 samples?
-accumulate: 64 # 12 or 2 or 8
-num_workers: 4 # 16 or 0
+accumulate: 8 # 12 or 2 or 8
+num_workers: 32 # 16 or 0

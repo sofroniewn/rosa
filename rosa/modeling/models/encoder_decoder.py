@@ -50,7 +50,7 @@ class RosaTransformer(nn.Module):
     ):
         super(RosaTransformer, self).__init__()
 
-        self.expression_embedding = partial(numerical_embedding, dim=config.expression_embed.dim, nbins=config.n_bins)
+        self.expression_embedding = partial(sinusoidal_embedding, dim=config.expression_embed.dim, nbins=config.n_bins)
         self.var_embedding = nn.Linear(in_dim, config.var_embed.dim)
 
         self.embedding_layer_norm_encoder = nn.LayerNorm(config.var_embed.dim)

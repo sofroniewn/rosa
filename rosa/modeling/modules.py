@@ -118,6 +118,9 @@ class RosaLightningModule(LightningModule):
         if self.global_rank != 0:
             return
 
+        if len(results) == 0:
+            return
+
         target, predicted, _, _ = reconstruct_from_results(results, self.n_bins)
 
         scores = score_predictions(predicted, target, nbins=self.n_bins)
