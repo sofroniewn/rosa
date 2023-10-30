@@ -28,7 +28,7 @@ We also explored a variety of transformer architectures including the performer 
 
 ### results (on pause)
 
-Results for the model were very much in-progress when I paused this work. The main difficulty seemed to be generalization within gene space. It could be that multispecies training, or training with paired genome and single cell sequencing data might be important. I did not have access to any paired genome and single cell data, but that would be an interesting future approach. Looking within the training genes, but at validation cells suggests though that using the Enformer embeddings lead to better performance compared to either a one-hot or an ESM embedding. Clearly more future work is needed here to fully explore the potential of this idea.
+Results for the model were very much in-progress when I paused this work. The main difficulty seemed to be generalization within to held-out gene sequences. It could be that multispecies training, or training with paired genome and single cell sequencing data might help. I did not have access to any paired genome and single cell data, but that would be an interesting future approach. Looking within the training genes, but at validation cells suggests though that using the Enformer embeddings lead to better performance compared to either a one-hot or an ESM embedding. Clearly more future work is needed here to fully explore the potential of this idea, but early signs were encouraging.
 
 ## acknowledgements
 
